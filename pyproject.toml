@@ -31,7 +31,10 @@ test = ["pytest>=8", "ruff>=0.6"]
 ollama-client = "ollama_client:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ollama_client.py"]
+packages = ["ollama_client"]
+
+[tool.hatch.build.targets.sdist]
+include = ["ollama_client", "tests", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.ruff]
 target-version = "py311"
@@ -39,3 +42,17 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+
+# __init__.py re-exports internals (_post, _cache_key, ...) for mock-patching
+# parity with the prior flat module — they are intentionally "unused" locally.
+[tool.ruff.lint.per-file-ignores]
+"ollama_client/__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+# Tell type-checkers the package root so relative imports resolve in-editor.
+[tool.pyright]
+include = ["ollama_client", "tests"]
+pythonVersion = "3.11"

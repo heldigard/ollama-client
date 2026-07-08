@@ -3,13 +3,15 @@
 Shared local-Ollama HTTP client for the cross-CLI harness. Single source of
 truth for talking to a local Ollama daemon (`http://localhost:11434`).
 
-**Graduated** from `~/.claude/scripts/ollama_client.py` (flat script consumed
-by four projects: `codeq`, `smart-trim`, `prompt-improve`, `web-research`).
-This project gives it a SemVer contract (`require()`), a `pyproject.toml`, and
-a real install path — mirroring how `cheap-llm` graduated before it. The
-original script remains at `~/.claude/scripts/ollama_client.py` as a thin
-**shim** that re-exports from here, so every existing consumer keeps working
-untouched.
+**Graduated** from `~/.claude/scripts/ollama_client.py` (originally a flat
+script consumed by four projects: `codeq`, `smart-trim`, `prompt-improve`,
+`web-research`). This project gives it a SemVer contract (`require()`), a
+`pyproject.toml`, a real install path, and a **vertical-slice package** layout
+(submodules: `_config`, `_version`, `_transport`, `_cache`, `generation`,
+`chat`, `embedding`, `vision`, `cli`) — mirroring how `cheap-llm` graduated
+before it. The original path remains at `~/.claude/scripts/ollama_client.py`
+as a thin **shim** that re-exports from the package here, so every existing
+consumer keeps working untouched (`import ollama_client` is byte-identical).
 
 Public repo: https://github.com/heldigard/ollama-client
 
@@ -45,7 +47,9 @@ mid-run error on version drift.
 pip install -e .          # or: uv sync
 ```
 
-Console script: `ollama-client is-alive | generate --prompt "..." | embed --text "..."`
+Console script: `ollama-client is-alive | generate --prompt "..." | embed --text "..." | ocr-image --image x.png`
+
+Also: `python -m ollama_client <command>` and `ollama-client --version`.
 
 ## License
 

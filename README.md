@@ -1,0 +1,52 @@
+# ollama-client
+
+Shared local-Ollama HTTP client for the cross-CLI harness. Single source of
+truth for talking to a local Ollama daemon (`http://localhost:11434`).
+
+**Graduated** from `~/.claude/scripts/ollama_client.py` (flat script consumed
+by four projects: `codeq`, `smart-trim`, `prompt-improve`, `web-research`).
+This project gives it a SemVer contract (`require()`), a `pyproject.toml`, and
+a real install path — mirroring how `cheap-llm` graduated before it. The
+original script remains at `~/.claude/scripts/ollama_client.py` as a thin
+**shim** that re-exports from here, so every existing consumer keeps working
+untouched.
+
+Public repo: https://github.com/heldigard/ollama-client
+
+## Operations
+
+| Function | What |
+|----------|------|
+| `is_alive(base_url)` | daemon reachability probe |
+| `generate(prompt, model, temperature, ...)` | one-shot completion (cached when temp ≤ `CACHE_MAX_TEMP`) |
+| `generate_fallback(prompt, models, ...)` | try a model list in order → `(text, model)` |
+| `chat(messages, model, ...)` / `chat_fallback(...)` | chat-completions variants |
+| `embed(text, model, base_url)` | vector via `/api/embeddings` |
+| `ocr_image(bytes, model, prompt, base_url)` | vision OCR of a PNG/JPEG |
+
+Cache: deterministic prompts keyed on `sha256(model|temperature|prompt)`, stored
+under `OLLAMA_CACHE_DIR` (`~/.claude/state/ollama-cache/`), pruned beyond
+`CACHE_MAX_ENTRIES`.
+
+## Versioned contract
+
+```python
+import ollama_client
+ollama_client.require("1.0")          # raises RuntimeError on drift
+ollama_client.__version__             # "1.0.0"
+```
+
+Consumers gate with `require("<min>")` to fail fast instead of hitting a cryptic
+mid-run error on version drift.
+
+## Install
+
+```bash
+pip install -e .          # or: uv sync
+```
+
+Console script: `ollama-client is-alive | generate --prompt "..." | embed --text "..."`
+
+## License
+
+MIT © heldigard

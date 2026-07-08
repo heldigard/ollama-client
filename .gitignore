@@ -15,3 +15,7 @@ htmlcov/
 .tags
 *.log
 .memory-bank/.index/
+
+# Harness artifacts (auto-setup marker, claudeignore metadata).
+.claude/
+.claudeignore

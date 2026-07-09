@@ -22,7 +22,7 @@ Public repo: https://github.com/heldigard/ollama-client
 | `is_alive(base_url)` | daemon reachability probe (`http/https` base URLs only) |
 | `generate(prompt, model, temperature, ...)` | one-shot completion (cached when temp ≤ `CACHE_MAX_TEMP`) |
 | `generate_fallback(prompt, models, ...)` | try a model list in order → `(text, model)` |
-| `chat(messages, model, ...)` / `chat_fallback(...)` | chat-completions variants |
+| `chat(messages, model, ...)` / `chat_fallback(...)` | chat completion; retries `/api/generate` only for Ollama's template-parser HTTP 400 |
 | `embed(text, model, base_url)` | vector via `/api/embeddings` |
 | `ocr_image(bytes, model, prompt, base_url)` | vision OCR of a PNG/JPEG |
 
@@ -34,12 +34,16 @@ under `OLLAMA_CACHE_DIR` (`~/.claude/state/ollama-cache/`), pruned beyond
 
 ```python
 import ollama_client
-ollama_client.require("1.0")          # raises RuntimeError on drift
-ollama_client.__version__             # "1.0.0"
+ollama_client.require("1.1")          # raises RuntimeError on drift
+ollama_client.__version__             # "1.1.0"
 ```
 
 Consumers gate with `require("<min>")` to fail fast instead of hitting a cryptic
 mid-run error on version drift.
+
+Role defaults are intentionally separate: `DEFAULT_SUMMARY_MODEL` is the
+one-line summary champion, while `DEFAULT_STRUCTURED_MODEL` is the structured
+tool-call champion. A single "best model" constant would hide that distinction.
 
 ## Install
 

@@ -18,6 +18,47 @@ from ._config import (
 from ._transport import OllamaRequestError, OllamaUnavailable, _post
 
 
+def _is_template_parser_error(exc: OllamaRequestError) -> bool:
+    """True for Ollama's model-template parser failure on ``/api/chat``.
+
+    Some completion-capable models advertise tool support but Ollama cannot
+    synthesize their chat parser. The same model remains usable through
+    ``/api/generate``. Other HTTP 400 errors must still surface unchanged.
+    """
+    body = exc.body.lower()
+    return exc.status == 400 and (
+        "unable to generate parser for this template" in body
+        or "automatic parser generation failed" in body
+    )
+
+
+def _generate_payload(messages: list[dict], model: str, think: bool, options: dict) -> dict:
+    """Translate chat messages into the closest ``/api/generate`` payload."""
+    systems = [
+        str(message.get("content", ""))
+        for message in messages
+        if message.get("role") == "system" and message.get("content")
+    ]
+    turns = [message for message in messages if message.get("role") != "system"]
+    if len(turns) == 1 and turns[0].get("role") == "user":
+        prompt = str(turns[0].get("content", ""))
+    else:
+        prompt = "\n\n".join(
+            f"{str(message.get('role', 'user')).upper()}:\n{message.get('content', '')}"
+            for message in turns
+        )
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "think": think,
+        "options": options,
+    }
+    if systems:
+        payload["system"] = "\n\n".join(systems)
+    return payload
+
+
 def chat(
     messages: list[dict],
     model: str = DEFAULT_GEN_MODEL,
@@ -57,20 +98,31 @@ def chat(
         options["num_predict"] = num_predict
     if num_ctx is not None:
         options["num_ctx"] = num_ctx
-    data = _post(
-        "/api/chat",
-        {
-            "model": model,
-            "messages": messages,
-            "stream": False,
-            "think": think,
-            "options": options,
-        },
-        base_url,
-        timeout,
-    )
-    msg = data.get("message")
-    content = msg.get("content", "") if isinstance(msg, dict) else ""
+    try:
+        data = _post(
+            "/api/chat",
+            {
+                "model": model,
+                "messages": messages,
+                "stream": False,
+                "think": think,
+                "options": options,
+            },
+            base_url,
+            timeout,
+        )
+        msg = data.get("message")
+        content = msg.get("content", "") if isinstance(msg, dict) else ""
+    except OllamaRequestError as exc:
+        if not _is_template_parser_error(exc):
+            raise
+        data = _post(
+            "/api/generate",
+            _generate_payload(messages, model, think, options),
+            base_url,
+            timeout,
+        )
+        content = data.get("response", "")
     content = _strip_think_tags(str(content).strip()) or None
 
     if content and cached_path is not None:

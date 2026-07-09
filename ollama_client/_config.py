@@ -17,7 +17,12 @@ DEFAULT_URL = "http://localhost:11434"
 #: Default completion model (3.4GB, ~115 tok/s, universal fallback 2026-07-08).
 DEFAULT_GEN_MODEL = "cryptidbleh/gemma4-claude-opus-4.6:latest"
 
-#: Structured/code summary model (codeq summary/context/relations).
+#: One-line code summary model (codeq summary/context/relations champion).
+DEFAULT_SUMMARY_MODEL = "batiai/gemma4-e4b:q4"
+
+#: Structured-output/tool-call model. This is intentionally distinct from the
+#: summary model: short free-text orientation and schema-constrained output are
+#: different benchmark roles.
 DEFAULT_STRUCTURED_MODEL = "SetneufPT/Qwopus3.5-4B-Coder-MTP_Q4_64k_8GB-GPU:latest"
 
 #: Vision OCR model (Unlimited-OCR GGUF).

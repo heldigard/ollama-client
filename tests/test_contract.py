@@ -9,7 +9,7 @@ from __future__ import annotations
 import inspect
 
 import ollama_client as o
-from ollama_client._config import DEFAULT_STRUCTURED_MODEL
+from ollama_client._config import DEFAULT_STRUCTURED_MODEL, DEFAULT_SUMMARY_MODEL
 
 # --- Names that MUST exist on the public surface ---
 
@@ -27,6 +27,7 @@ PUBLIC_FUNCTIONS = [
 PUBLIC_CONSTANTS = [
     "DEFAULT_URL",
     "DEFAULT_GEN_MODEL",
+    "DEFAULT_SUMMARY_MODEL",
     "DEFAULT_STRUCTURED_MODEL",
     "DEFAULT_PDF_OCR_MODEL",
     "PDF_OCR_PROMPT",
@@ -51,6 +52,9 @@ def test_public_constants_exist():
     for name in PUBLIC_CONSTANTS:
         assert hasattr(o, name), f"missing public constant: {name}"
     assert o.DEFAULT_STRUCTURED_MODEL == DEFAULT_STRUCTURED_MODEL
+    assert o.DEFAULT_SUMMARY_MODEL == DEFAULT_SUMMARY_MODEL
+    assert o.DEFAULT_SUMMARY_MODEL == "batiai/gemma4-e4b:q4"
+    assert o.DEFAULT_STRUCTURED_MODEL != o.DEFAULT_SUMMARY_MODEL
 
 
 def test_exceptions_exist_and_hierarchy():
@@ -66,7 +70,7 @@ def test_exceptions_exist_and_hierarchy():
 
 def test_version_attribute():
     assert isinstance(o.__version__, str)
-    assert o.__version__ == "1.0.0"
+    assert o.__version__ == "1.1.0"
 
 
 def test_all_exports_resolve():

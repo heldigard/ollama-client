@@ -56,8 +56,10 @@ https://github.com/heldigard/ollama-client
   wins). Tests reach the module via `importlib.import_module("ollama_client.chat")`.
 
 ## Key Decisions
-- **SemVer 1.0.0 + `require()`** — consumers fail fast on version drift instead
+- **SemVer 1.1.0 + `require()`** — consumers fail fast on version drift instead
   of cryptic mid-run errors. Mirrors `cheap_llm`.
+- **Narrow chat fallback** — only Ollama's HTTP 400 automatic template-parser
+  failure retries through `/api/generate`; unrelated bad requests still raise.
 - **Vertical-slice package, contract preserved** — split for navigability;
   `__init__` re-export keeps `import ollama_client` byte-identical (verified by
   `tests/test_contract.py`).

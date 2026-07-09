@@ -30,17 +30,16 @@ def test_require_returns_version():
 
 
 def test_require_accepts_equal():
-    assert o.require("1.0.0") == "1.0.0"
+    assert o.require("1.1.0") == o.__version__
 
 
 def test_require_accepts_older_min():
-    # 1.0.0 >= 0.9.0
-    assert o.require("0.9.0") == "1.0.0"
+    assert o.require("0.9.0") == o.__version__
 
 
 def test_require_accepts_shorter_min():
-    # prompt-improve calls require("1.0"); 1.0.0 satisfies 1.0
-    assert o.require("1.0") == "1.0.0"
+    # prompt-improve and smart-trim require the parser-fallback contract.
+    assert o.require("1.1") == o.__version__
 
 
 def test_require_rejects_newer_min():

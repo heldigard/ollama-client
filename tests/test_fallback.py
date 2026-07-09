@@ -10,6 +10,10 @@ See ``topics/mocking-semantics.md``.
 
 from __future__ import annotations
 
+import importlib
+
+import pytest
+
 import ollama_client as o
 
 # --- generate_fallback ---
@@ -111,3 +115,38 @@ def test_chat_fallback_aborts_on_unavailable(monkeypatch):
 
     monkeypatch.setattr(o, "chat", fake)
     assert o.chat_fallback([{"role": "user", "content": "x"}], ["cA", "cB"]) == (None, None)
+
+
+def test_chat_retries_generate_for_template_parser_error(monkeypatch):
+    """Ollama 0.31.x can reject tool-capable templates on /api/chat even
+    though the same model works on /api/generate."""
+    chat_module = importlib.import_module("ollama_client.chat")
+    calls: list[tuple[str, dict]] = []
+
+    def fake_post(path, payload, _base_url, _timeout):
+        calls.append((path, payload))
+        if path == "/api/chat":
+            raise o.OllamaRequestError(400, "Unable to generate parser for this template")
+        return {"response": "grounded result"}
+
+    monkeypatch.setattr(chat_module, "_post", fake_post)
+    messages = [
+        {"role": "system", "content": "Do not invent."},
+        {"role": "user", "content": "Review ~/ollama-bench/."},
+    ]
+    assert o.chat(messages, model="m", cache=False) == "grounded result"
+    assert [path for path, _ in calls] == ["/api/chat", "/api/generate"]
+    assert calls[1][1]["system"] == "Do not invent."
+    assert calls[1][1]["prompt"] == "Review ~/ollama-bench/."
+    assert calls[1][1]["think"] is False
+
+
+def test_chat_does_not_mask_other_bad_requests(monkeypatch):
+    chat_module = importlib.import_module("ollama_client.chat")
+
+    def fake_post(*_args, **_kwargs):
+        raise o.OllamaRequestError(400, "invalid option")
+
+    monkeypatch.setattr(chat_module, "_post", fake_post)
+    with pytest.raises(o.OllamaRequestError, match="invalid option"):
+        o.chat([{"role": "user", "content": "x"}], model="m", cache=False)

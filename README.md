@@ -19,7 +19,7 @@ Public repo: https://github.com/heldigard/ollama-client
 
 | Function | What |
 |----------|------|
-| `is_alive(base_url)` | daemon reachability probe |
+| `is_alive(base_url)` | daemon reachability probe (`http/https` base URLs only) |
 | `generate(prompt, model, temperature, ...)` | one-shot completion (cached when temp ≤ `CACHE_MAX_TEMP`) |
 | `generate_fallback(prompt, models, ...)` | try a model list in order → `(text, model)` |
 | `chat(messages, model, ...)` / `chat_fallback(...)` | chat-completions variants |
@@ -47,7 +47,7 @@ mid-run error on version drift.
 pip install -e .          # or: uv sync
 ```
 
-Console script: `ollama-client is-alive | generate --prompt "..." | embed --text "..." | ocr-image --image x.png`
+Console script: `ollama-client is-alive [--base-url http://localhost:11434] | generate --prompt "..." | embed --text "..." | ocr-image --image x.png`
 
 Also: `python -m ollama_client <command>` and `ollama-client --version`.
 

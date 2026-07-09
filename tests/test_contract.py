@@ -9,6 +9,7 @@ from __future__ import annotations
 import inspect
 
 import ollama_client as o
+from ollama_client._config import DEFAULT_STRUCTURED_MODEL
 
 # --- Names that MUST exist on the public surface ---
 
@@ -49,9 +50,12 @@ def test_public_functions_exist_and_callable():
 def test_public_constants_exist():
     for name in PUBLIC_CONSTANTS:
         assert hasattr(o, name), f"missing public constant: {name}"
+    assert o.DEFAULT_STRUCTURED_MODEL == DEFAULT_STRUCTURED_MODEL
 
 
 def test_exceptions_exist_and_hierarchy():
+    for name in PUBLIC_EXCEPTIONS:
+        assert hasattr(o, name), f"missing public exception: {name}"
     assert issubclass(o.OllamaRequestError, o.OllamaUnavailable)
     assert issubclass(o.OllamaUnavailable, RuntimeError)
     # ctor carries status + body (prompt-improve reads these)
@@ -69,6 +73,12 @@ def test_all_exports_resolve():
     """Every name in __all__ is actually present on the package."""
     for name in o.__all__:
         assert hasattr(o, name), f"__all__ lists {name} but it is not importable"
+
+
+def test_all_includes_public_contract():
+    """Star-import compatibility: the prior flat module exported public constants."""
+    for name in [*PUBLIC_FUNCTIONS, *PUBLIC_CONSTANTS, *PUBLIC_EXCEPTIONS, "__version__"]:
+        assert name in o.__all__, f"public contract name missing from __all__: {name}"
 
 
 # --- Frozen signatures (the wide param lists are the contract) ---

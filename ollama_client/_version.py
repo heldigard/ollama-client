@@ -6,6 +6,8 @@ cryptic mid-run error. Mirrors ``cheap_llm``.
 
 from __future__ import annotations
 
+import re
+
 __version__ = "1.0.0"
 
 
@@ -13,8 +15,8 @@ def _parse_version(v: str) -> tuple[int, ...]:
     """Best-effort dotted-integer parse (ignores pre-release suffixes)."""
     parts: list[int] = []
     for p in v.split("."):
-        digits = "".join(ch for ch in p if ch.isdigit())
-        parts.append(int(digits) if digits else 0)
+        match = re.search(r"\d+", p)
+        parts.append(int(match.group(0)) if match else 0)
     return tuple(parts)
 
 

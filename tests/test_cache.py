@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ollama_client._cache import _cache_key, _cache_key_chat, _strip_think_tags
+from ollama_client._cache import _cache_key, _cache_key_chat, _strip_think_tags, _write_cache_text
 
 # --- _cache_key (generate) ---
 
@@ -137,3 +137,13 @@ def test_prune_noop_under_limit(isolated_cache):
 
     _prune_cache(max_entries=10)
     assert (isolated_cache / "a.txt").exists()
+
+
+def test_write_cache_text_replaces_without_tmp_leftovers(isolated_cache):
+    path = isolated_cache / "entry.txt"
+    path.write_text("old", encoding="utf-8")
+
+    _write_cache_text(path, "new")
+
+    assert path.read_text(encoding="utf-8") == "new"
+    assert list(isolated_cache.glob("*.tmp")) == []

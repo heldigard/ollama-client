@@ -13,20 +13,32 @@ import ollama_client.cli as cli_mod
 
 
 def test_cli_is_alive_true(monkeypatch):
-    monkeypatch.setattr(cli_mod, "is_alive", lambda *a, **k: True)
+    monkeypatch.setattr(cli_mod, "is_alive", lambda *a, **_kw: True)
     assert cli_mod._cli(["is-alive"]) == 0
 
 
 def test_cli_is_alive_false(monkeypatch):
-    monkeypatch.setattr(cli_mod, "is_alive", lambda *a, **k: False)
+    monkeypatch.setattr(cli_mod, "is_alive", lambda *a, **_kw: False)
     assert cli_mod._cli(["is-alive"]) == 1
+
+
+def test_cli_is_alive_base_url(monkeypatch):
+    captured: dict = {}
+
+    def fake(**kw: object) -> bool:
+        captured.update(kw)
+        return True
+
+    monkeypatch.setattr(cli_mod, "is_alive", fake)
+    assert cli_mod._cli(["is-alive", "--base-url", "http://custom:11434"]) == 0
+    assert captured["base_url"] == "http://custom:11434"
 
 
 # --- generate ---
 
 
 def test_cli_generate_ok(monkeypatch, capsys):
-    monkeypatch.setattr(cli_mod, "generate", lambda *a, **k: "hello world")
+    monkeypatch.setattr(cli_mod, "generate", lambda *a, **_kw: "hello world")
     rc = cli_mod._cli(["generate", "--prompt", "hi"])
     assert rc == 0
     assert capsys.readouterr().out.strip() == "hello world"
@@ -34,12 +46,12 @@ def test_cli_generate_ok(monkeypatch, capsys):
 
 def test_cli_generate_empty_exit_zero(monkeypatch, capsys):
     """Empty output is not an error for generate (exit 0, nothing printed)."""
-    monkeypatch.setattr(cli_mod, "generate", lambda *a, **k: None)
+    monkeypatch.setattr(cli_mod, "generate", lambda *a, **_kw: None)
     assert cli_mod._cli(["generate", "--prompt", "hi"]) == 0
 
 
 def test_cli_generate_unavailable_exit_2(monkeypatch):
-    def boom(*a, **k):
+    def boom(*a, **_kw):
         raise o.OllamaUnavailable("down")
 
     monkeypatch.setattr(cli_mod, "generate", boom)
@@ -64,14 +76,14 @@ def test_cli_generate_no_cache_flag(monkeypatch):
 
 
 def test_cli_embed_ok(monkeypatch, capsys):
-    monkeypatch.setattr(cli_mod, "embed", lambda *a, **k: [0.1, 0.2, 0.3])
+    monkeypatch.setattr(cli_mod, "embed", lambda *a, **_kw: [0.1, 0.2, 0.3])
     rc = cli_mod._cli(["embed", "--text", "word"])
     assert rc == 0
     assert json.loads(capsys.readouterr().out) == [0.1, 0.2, 0.3]
 
 
 def test_cli_embed_none_exit_2(monkeypatch):
-    monkeypatch.setattr(cli_mod, "embed", lambda *a, **k: None)
+    monkeypatch.setattr(cli_mod, "embed", lambda *a, **_kw: None)
     assert cli_mod._cli(["embed", "--text", "word"]) == 2
 
 
@@ -81,7 +93,7 @@ def test_cli_embed_none_exit_2(monkeypatch):
 def test_cli_ocr_ok(monkeypatch, capsys, tmp_path):
     img = tmp_path / "page.png"
     img.write_bytes(b"\x89PNG fake")
-    monkeypatch.setattr(cli_mod, "ocr_image", lambda *a, **k: "EXTRACTED TEXT")
+    monkeypatch.setattr(cli_mod, "ocr_image", lambda *a, **_kw: "EXTRACTED TEXT")
     rc = cli_mod._cli(["ocr-image", "--image", str(img)])
     assert rc == 0
     assert capsys.readouterr().out.strip() == "EXTRACTED TEXT"
@@ -90,7 +102,7 @@ def test_cli_ocr_ok(monkeypatch, capsys, tmp_path):
 def test_cli_ocr_empty_exit_3(monkeypatch, tmp_path):
     img = tmp_path / "page.png"
     img.write_bytes(b"\x89PNG fake")
-    monkeypatch.setattr(cli_mod, "ocr_image", lambda *a, **k: None)
+    monkeypatch.setattr(cli_mod, "ocr_image", lambda *a, **_kw: None)
     assert cli_mod._cli(["ocr-image", "--image", str(img)]) == 3
 
 
@@ -98,7 +110,7 @@ def test_cli_ocr_unavailable_exit_2(monkeypatch, tmp_path):
     img = tmp_path / "page.png"
     img.write_bytes(b"x")
 
-    def boom(*a, **k):
+    def boom(*a, **_kw):
         raise o.OllamaUnavailable("down")
 
     monkeypatch.setattr(cli_mod, "ocr_image", boom)
@@ -111,7 +123,7 @@ def test_cli_ocr_unavailable_exit_2(monkeypatch, tmp_path):
 def test_main_delegates_to_cli(monkeypatch):
     """main() is the public alias for _cli() and reads sys.argv."""
     monkeypatch.setattr("sys.argv", ["ollama-client", "is-alive"])
-    monkeypatch.setattr(cli_mod, "is_alive", lambda *a, **k: True)
+    monkeypatch.setattr(cli_mod, "is_alive", lambda *a, **_kw: True)
     assert o.main() == 0
 
 

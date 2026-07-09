@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import tempfile
 from pathlib import Path
 
 from ._config import CACHE_MAX_ENTRIES, OLLAMA_CACHE_DIR
@@ -62,6 +63,29 @@ def _prune_cache(max_entries: int = CACHE_MAX_ENTRIES) -> None:
             path.unlink()
         except OSError:
             pass
+
+
+def _write_cache_text(path: Path, text: str) -> None:
+    """Atomically replace a cache entry with ``text``."""
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp:
+            tmp.write(text)
+            tmp_path = Path(tmp.name)
+        tmp_path.replace(path)
+    finally:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
 
 
 def _strip_think_tags(text: str) -> str:

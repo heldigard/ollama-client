@@ -15,7 +15,8 @@ from ollama_client._version import _parse_version
         ("1.2.3", (1, 2, 3)),
         ("1.0", (1, 0)),
         ("2", (2,)),
-        ("1.0.0-rc1", (1, 0, 1)),  # digits of segment "0-rc1" concatenate -> "01" -> 1
+        ("1.0.0-rc1", (1, 0, 0)),  # prerelease suffix ignored
+        ("1.2rc3", (1, 2)),
         ("", (0,)),  # split("") -> [""] -> digits "" -> 0
         ("v1.2.3", (1, 2, 3)),  # leading 'v' dropped
     ],

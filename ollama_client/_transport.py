@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from ._config import DEFAULT_URL
@@ -42,10 +43,11 @@ class OllamaRequestError(OllamaUnavailable):
 def is_alive(base_url: str = DEFAULT_URL, timeout: float = 2.0) -> bool:
     """True iff the Ollama daemon answers ``/api/tags`` quickly."""
     try:
-        req = urllib.request.Request(f"{base_url.rstrip('/')}/api/tags", method="GET")
+        req = urllib.request.Request(f"{_normalize_base_url(base_url)}/api/tags", method="GET")
+        # nosemgrep: dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status == 200
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
+    except (ValueError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
         return False
 
 
@@ -60,6 +62,9 @@ def _normalize_base_url(base_url: str) -> str:
         if url.endswith(suffix):
             url = url[: -len(suffix)]
             break
+    scheme = urllib.parse.urlsplit(url).scheme
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"unsupported Ollama base_url scheme: {scheme or '<missing>'}")
     return url
 
 
@@ -79,8 +84,16 @@ def _post(path: str, payload: dict, base_url: str, timeout: float) -> dict:
         method="POST",
     )
     try:
+        # nosemgrep: dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            body = resp.read().decode("utf-8")
+            try:
+                parsed = json.loads(body)
+            except json.JSONDecodeError as exc:
+                raise OllamaRequestError(502, f"invalid JSON response: {body[:200]}") from exc
+            if not isinstance(parsed, dict):
+                raise OllamaRequestError(502, f"unexpected JSON response: {body[:200]}")
+            return parsed
     except urllib.error.HTTPError as exc:
         # Daemon reachable but THIS request failed (load failure, OOM,
         # model-not-found). Model-specific → caller tries the next model.

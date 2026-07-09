@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ._cache import _cache_key_chat, _cache_path, _prune_cache, _strip_think_tags
+from ._cache import _cache_key_chat, _cache_path, _prune_cache, _strip_think_tags, _write_cache_text
 from ._config import (
     CACHE_MAX_TEMP,
     DEFAULT_GEN_MODEL,
@@ -75,7 +75,7 @@ def chat(
 
     if content and cached_path is not None:
         try:
-            cached_path.write_text(content, encoding="utf-8")
+            _write_cache_text(cached_path, content)
             _prune_cache()
         except OSError:
             pass

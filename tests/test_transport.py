@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import urllib.error
+from email.message import Message
 
 import pytest
 
@@ -33,6 +34,16 @@ def test_normalize_embeddings_suffix():
     assert _normalize_base_url("http://h:11434/api/embeddings") == "http://h:11434"
 
 
+def test_normalize_rejects_non_http_scheme():
+    with pytest.raises(ValueError):
+        _normalize_base_url("file:///tmp/ollama")
+
+
+def test_normalize_rejects_missing_scheme():
+    with pytest.raises(ValueError):
+        _normalize_base_url("localhost:11434")
+
+
 # --- _post exception taxonomy (drives fallback behavior) ---
 
 
@@ -42,12 +53,30 @@ def test_post_success_returns_parsed_json(fake_urlopen):
     assert data == {"response": "hi", "done": True}
     # _post forwards the payload verbatim (generate/chat add stream upstream)
     assert fake_urlopen.calls[0].payload["model"] == "m"
+    assert fake_urlopen.calls[0].method == "POST"
+
+
+def test_post_invalid_json_becomes_request_error(fake_urlopen):
+    """Malformed 200 responses are model/request failures, not raw JSON errors."""
+    fake_urlopen.set_raw_response(b"not-json")
+    with pytest.raises(o.OllamaRequestError) as ei:
+        _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
+    assert ei.value.status == 502
+    assert "invalid JSON response" in ei.value.body
+
+
+def test_post_non_object_json_becomes_request_error(fake_urlopen):
+    fake_urlopen.set_raw_response(b'["not", "an", "object"]')
+    with pytest.raises(o.OllamaRequestError) as ei:
+        _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
+    assert ei.value.status == 502
+    assert "unexpected JSON response" in ei.value.body
 
 
 def test_post_http_error_becomes_request_error(fake_urlopen):
     """HTTPError -> OllamaRequestError (model-specific -> try next)."""
     fp = io.BytesIO(b'{"error":"model not found"}')
-    err = urllib.error.HTTPError("http://h/api/generate", 404, "Not Found", {}, fp)
+    err = urllib.error.HTTPError("http://h/api/generate", 404, "Not Found", Message(), fp)
     fake_urlopen.raise_error(err)
     with pytest.raises(o.OllamaRequestError) as ei:
         _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
@@ -85,6 +114,17 @@ def test_post_uses_normalized_base_url(fake_urlopen):
 def test_is_alive_true_on_200(fake_urlopen):
     fake_urlopen.set_response({"models": []}, status=200)
     assert o.is_alive("http://h:11434") is True
+    assert fake_urlopen.calls[0].method == "GET"
+
+
+def test_is_alive_uses_normalized_base_url(fake_urlopen):
+    fake_urlopen.set_response({"models": []}, status=200)
+    assert o.is_alive("http://h:11434/api/generate") is True
+    assert fake_urlopen.calls[0].url == "http://h:11434/api/tags"
+
+
+def test_is_alive_false_on_invalid_base_url():
+    assert o.is_alive("file:///tmp/ollama") is False
 
 
 def test_is_alive_false_on_url_error(fake_urlopen):

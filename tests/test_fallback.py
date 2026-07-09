@@ -60,7 +60,7 @@ def test_generate_fallback_aborts_on_unavailable(monkeypatch):
 
 
 def test_generate_fallback_all_return_none(monkeypatch):
-    monkeypatch.setattr(o, "generate", lambda *a, **k: None)
+    monkeypatch.setattr(o, "generate", lambda *a, **_kw: None)
     assert o.generate_fallback("p", ["mA", "mB"]) == (None, None)
 
 

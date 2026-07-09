@@ -25,7 +25,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-test = ["pytest>=8", "ruff>=0.6"]
+test = ["pytest>=8", "ruff>=0.6", "pyright>=1.1"]
 
 [project.scripts]
 ollama-client = "ollama_client:main"
@@ -51,6 +51,7 @@ select = ["E", "F", "W", "I"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+pythonpath = ["."]
 
 # Tell type-checkers the package root so relative imports resolve in-editor.
 [tool.pyright]

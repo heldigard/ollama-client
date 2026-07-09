@@ -60,11 +60,15 @@ def fake_urlopen():
 
     class _Recorder:
         def __init__(self) -> None:
-            self.response_body: dict = {}
+            self.response_body: dict | bytes = {}
             self.response_status: int = 200
             self.error: BaseException | None = None
 
         def set_response(self, body: dict, status: int = 200) -> None:
+            self.response_body = body
+            self.response_status = status
+
+        def set_raw_response(self, body: bytes, status: int = 200) -> None:
             self.response_body = body
             self.response_status = status
 
@@ -78,8 +82,8 @@ def fake_urlopen():
     recorder = _Recorder()
 
     class _FakeResponse:
-        def __init__(self, body: dict, status: int) -> None:
-            self._body = json.dumps(body).encode("utf-8")
+        def __init__(self, body: dict | bytes, status: int) -> None:
+            self._body = body if isinstance(body, bytes) else json.dumps(body).encode("utf-8")
             self.status = status
 
         def read(self) -> bytes:

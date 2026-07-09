@@ -9,7 +9,7 @@ https://github.com/heldigard/ollama-client
 - Test: `pytest`
 - Lint: `ruff check .`
 - Format check (read-only): `ruff format --check .`
-- Smoke: `python3 -m ollama_client is-alive` → exit 0 if daemon answers
+- Smoke: `python3 -m ollama_client is-alive [--base-url http://localhost:11434]` → exit 0 if daemon answers
 - Console: `ollama-client is-alive | generate --prompt "..." | embed --text "..." | ocr-image --image x.png`
 
 ## Stack
@@ -27,6 +27,9 @@ https://github.com/heldigard/ollama-client
   smart-trim, prompt-improve, web-research — import via the
   `~/.claude/scripts/ollama_client.py` **shim**, which re-exports from here)
 - `require(min_version)` SemVer gate for consumers
+- `base_url` accepts only `http://` / `https://` Ollama endpoints. Legacy full
+  endpoint URLs (`.../api/generate`, `.../api/chat`, `.../api/embeddings`) are
+  normalized back to the daemon base.
 
 ## Architecture (why the package split)
 - Each submodule is one sub-concern: transport (HTTP + exceptions), cache

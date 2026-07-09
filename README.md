@@ -41,9 +41,17 @@ ollama_client.__version__             # "1.1.0"
 Consumers gate with `require("<min>")` to fail fast instead of hitting a cryptic
 mid-run error on version drift.
 
-Role defaults are intentionally separate: `DEFAULT_SUMMARY_MODEL` is the
-one-line summary champion, while `DEFAULT_STRUCTURED_MODEL` is the structured
-tool-call champion. A single "best model" constant would hide that distinction.
+Role defaults are intentionally separate — a single "best model" constant would
+hide the distinction. Current champions (wiring validated 2026-07-09; source
+`~/ollama-bench/results_wiring_validation_20260709.md`):
+
+| constant | model | role |
+|---|---|---|
+| `DEFAULT_GEN_MODEL` | `cryptidbleh/gemma4-claude-opus-4.6` | general generation (`chat`→`generate` fallback) |
+| `DEFAULT_SUMMARY_MODEL` | `batiai/gemma4-e4b:q4` | one-line code summaries |
+| `DEFAULT_STRUCTURED_MODEL` | `SetneufPT/Qwopus3.5-4B-Coder-MTP` | structured tool-call |
+| `DEFAULT_PDF_OCR_MODEL` | `hf.co/sahilchachra/Unlimited-OCR-GGUF:Q4_K_M` | PDF OCR |
+| `DEFAULT_EMBED_MODEL` | `embeddinggemma` | embeddings |
 
 ## Install
 

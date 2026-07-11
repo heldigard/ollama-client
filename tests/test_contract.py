@@ -70,7 +70,7 @@ def test_exceptions_exist_and_hierarchy():
 
 def test_version_attribute():
     assert isinstance(o.__version__, str)
-    assert o.__version__ == "1.1.0"
+    assert o.__version__ == "1.2.0"
 
 
 def test_all_exports_resolve():

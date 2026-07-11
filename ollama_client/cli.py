@@ -19,6 +19,7 @@ from ._config import (
 )
 from ._transport import OllamaUnavailable, is_alive
 from ._version import __version__
+from .chat import chat
 from .embedding import embed
 from .generation import generate
 from .vision import ocr_image
@@ -36,6 +37,14 @@ def _cli(argv: list[str] | None = None) -> int:
     g.add_argument("--temperature", type=float, default=0.2)
     g.add_argument("--no-cache", action="store_true")
     g.add_argument("--base-url", default=DEFAULT_URL)
+    c = sub.add_parser("chat", help="Chat completion (system/user roles)")
+    c.add_argument("--prompt", required=True, help="User message")
+    c.add_argument("--system", default=None, help="Optional system message")
+    c.add_argument("--model", default=DEFAULT_GEN_MODEL)
+    c.add_argument("--temperature", type=float, default=0.2)
+    c.add_argument("--num-predict", type=int, default=None)
+    c.add_argument("--no-cache", action="store_true")
+    c.add_argument("--base-url", default=DEFAULT_URL)
     o = sub.add_parser("ocr-image", help="OCR one rendered page/image")
     o.add_argument("--image", required=True, help="PNG/JPEG path")
     o.add_argument("--model", default=DEFAULT_PDF_OCR_MODEL)
@@ -66,6 +75,27 @@ def _cli(argv: list[str] | None = None) -> int:
             print(out)
         return 0
 
+    if args.command == "chat":
+        messages: list[dict] = []
+        if args.system:
+            messages.append({"role": "system", "content": args.system})
+        messages.append({"role": "user", "content": args.prompt})
+        try:
+            out = chat(
+                messages,
+                model=args.model,
+                temperature=args.temperature,
+                num_predict=args.num_predict,
+                base_url=args.base_url,
+                cache=not args.no_cache,
+            )
+        except OllamaUnavailable as exc:
+            print(f"ollama unavailable: {exc}", file=sys.stderr)
+            return 2
+        if out:
+            print(out)
+        return 0
+
     if args.command == "embed":
         vec = embed(args.text, model=args.model, base_url=args.base_url)
         if vec is None:
@@ -76,8 +106,13 @@ def _cli(argv: list[str] | None = None) -> int:
 
     if args.command == "ocr-image":
         try:
+            image_bytes = Path(args.image).read_bytes()
+        except OSError as exc:
+            print(f"cannot read image {args.image}: {exc}", file=sys.stderr)
+            return 2
+        try:
             out = ocr_image(
-                Path(args.image).read_bytes(),
+                image_bytes,
                 model=args.model,
                 prompt=args.prompt,
                 base_url=args.base_url,

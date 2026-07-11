@@ -135,3 +135,52 @@ def test_cli_version_flag(capsys):
     out = capsys.readouterr().out
     assert "ollama-client" in out
     assert o.__version__ in out
+
+
+def test_cli_ocr_missing_image_exit_2(capsys, tmp_path):
+    """A missing/unreadable image path must exit 2 with a message, not traceback."""
+    rc = cli_mod._cli(["ocr-image", "--image", str(tmp_path / "nope.png")])
+    assert rc == 2
+    assert "cannot read image" in capsys.readouterr().err
+
+
+# --- chat ---
+
+
+def test_cli_chat_ok(monkeypatch, capsys):
+    captured: dict = {}
+
+    def fake(messages: list, **kw: object) -> str:
+        captured["messages"] = messages
+        captured.update(kw)
+        return "chat answer"
+
+    monkeypatch.setattr(cli_mod, "chat", fake)
+    rc = cli_mod._cli(["chat", "--prompt", "hi", "--system", "be terse", "--num-predict", "64"])
+    assert rc == 0
+    assert capsys.readouterr().out.strip() == "chat answer"
+    assert captured["messages"] == [
+        {"role": "system", "content": "be terse"},
+        {"role": "user", "content": "hi"},
+    ]
+    assert captured["num_predict"] == 64
+
+
+def test_cli_chat_no_system_single_user_message(monkeypatch):
+    captured: dict = {}
+
+    def fake(messages: list, **kw: object) -> str:
+        captured["messages"] = messages
+        return "ok"
+
+    monkeypatch.setattr(cli_mod, "chat", fake)
+    assert cli_mod._cli(["chat", "--prompt", "hi"]) == 0
+    assert captured["messages"] == [{"role": "user", "content": "hi"}]
+
+
+def test_cli_chat_unavailable_exit_2(monkeypatch):
+    def boom(*a, **_kw):
+        raise o.OllamaUnavailable("down")
+
+    monkeypatch.setattr(cli_mod, "chat", boom)
+    assert cli_mod._cli(["chat", "--prompt", "hi"]) == 2

@@ -147,3 +147,54 @@ def test_write_cache_text_replaces_without_tmp_leftovers(isolated_cache):
 
     assert path.read_text(encoding="utf-8") == "new"
     assert list(isolated_cache.glob("*.tmp")) == []
+
+
+def test_generate_empty_cache_entry_falls_through(isolated_cache, fake_urlopen):
+    """An empty cached file (truncated write) must not short-circuit the live
+    call forever: it is dropped and the call regenerates."""
+    from ollama_client._cache import _cache_key, _cache_path
+    from ollama_client.generation import generate
+
+    key = _cache_key("m", "prompt", 0.0, None)
+    empty = _cache_path(key)
+    empty.parent.mkdir(parents=True, exist_ok=True)
+    empty.write_text("", encoding="utf-8")
+
+    fake_urlopen.set_response({"response": "live answer"})
+    out = generate("prompt", model="m", temperature=0.0)
+    assert out == "live answer"
+    assert fake_urlopen.calls, "live call must happen despite the cached entry"
+    assert empty.read_text(encoding="utf-8") == "live answer"
+
+
+def test_chat_empty_cache_entry_falls_through(isolated_cache, fake_urlopen):
+    from ollama_client._cache import _cache_key_chat, _cache_path
+    from ollama_client.chat import chat
+
+    messages = [{"role": "user", "content": "q"}]
+    key = _cache_key_chat("m", messages, 0.0, None, None)
+    empty = _cache_path(key)
+    empty.parent.mkdir(parents=True, exist_ok=True)
+    empty.write_text("", encoding="utf-8")
+
+    fake_urlopen.set_response({"message": {"role": "assistant", "content": "live"}})
+    assert chat(messages, model="m", temperature=0.0) == "live"
+    assert fake_urlopen.calls
+
+
+def test_prune_cache_sweeps_stale_tmp_files(isolated_cache):
+    import os
+    import time
+
+    from ollama_client._cache import _prune_cache
+
+    stale = isolated_cache / ".abc.txt.xyz.tmp"
+    stale.write_text("partial", encoding="utf-8")
+    old = time.time() - 7200
+    os.utime(stale, (old, old))
+    fresh = isolated_cache / ".def.txt.uvw.tmp"
+    fresh.write_text("in-flight", encoding="utf-8")
+
+    _prune_cache()
+    assert not stale.exists(), "stale tmp leftovers must be swept"
+    assert fresh.exists(), "fresh tmp files (in-flight writes) must survive"

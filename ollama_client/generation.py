@@ -47,9 +47,17 @@ def generate(
         OLLAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         if cached_path.exists():
             try:
-                return cached_path.read_text(encoding="utf-8")
+                cached_text = cached_path.read_text(encoding="utf-8")
             except OSError:
-                pass  # corrupt entry; fall through to live call
+                cached_text = ""  # corrupt entry; fall through to live call
+            if cached_text:
+                return cached_text
+            # An empty entry (truncated write) would short-circuit the live
+            # call forever — drop it and regenerate.
+            try:
+                cached_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     options: dict = {"temperature": temperature}
     if num_ctx is not None:

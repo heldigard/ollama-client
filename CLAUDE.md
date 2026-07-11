@@ -10,7 +10,7 @@ https://github.com/heldigard/ollama-client
 - Lint: `ruff check .`
 - Format check (read-only): `ruff format --check .`
 - Smoke: `python3 -m ollama_client is-alive [--base-url http://localhost:11434]` → exit 0 if daemon answers
-- Console: `ollama-client is-alive | generate --prompt "..." | embed --text "..." | ocr-image --image x.png`
+- Console: `ollama-client is-alive | generate --prompt "..." | chat --prompt "..." [--system "..."] | embed --text "..." | ocr-image --image x.png`
 
 ## Stack
 - Python ≥ 3.11

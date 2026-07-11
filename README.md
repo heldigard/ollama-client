@@ -59,7 +59,7 @@ hide the distinction. Current champions (wiring validated 2026-07-09; source
 pip install -e .          # or: uv sync
 ```
 
-Console script: `ollama-client is-alive [--base-url http://localhost:11434] | generate --prompt "..." | embed --text "..." | ocr-image --image x.png`
+Console script: `ollama-client is-alive [--base-url http://localhost:11434] | generate --prompt "..." | chat --prompt "..." [--system "..."] | embed --text "..." | ocr-image --image x.png`
 
 Also: `python -m ollama_client <command>` and `ollama-client --version`.
 

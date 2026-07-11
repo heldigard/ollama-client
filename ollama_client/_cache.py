@@ -13,6 +13,7 @@ import hashlib
 import json
 import re
 import tempfile
+import time
 from pathlib import Path
 
 from ._config import CACHE_MAX_ENTRIES, OLLAMA_CACHE_DIR
@@ -49,8 +50,18 @@ def _cache_key_chat(
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+#: Orphaned atomic-write temp files older than this are swept by ``_prune_cache``.
+_TMP_MAX_AGE_SECONDS = 3600.0
+
+
 def _prune_cache(max_entries: int = CACHE_MAX_ENTRIES) -> None:
-    """Keep the cache bounded by deleting oldest entries beyond ``max_entries``."""
+    """Keep the cache bounded by deleting oldest entries beyond ``max_entries``.
+
+    Also sweeps ``.tmp`` leftovers from atomic writes interrupted by a hard
+    kill — they match no ``*.txt`` glob, so without the sweep they would
+    accumulate forever. The age threshold keeps in-flight writes safe.
+    """
+    _sweep_stale_tmp_files()
     try:
         files = sorted(OLLAMA_CACHE_DIR.glob("*.txt"), key=lambda p: p.stat().st_mtime)
     except OSError:
@@ -61,6 +72,20 @@ def _prune_cache(max_entries: int = CACHE_MAX_ENTRIES) -> None:
     for path in files[:excess]:
         try:
             path.unlink()
+        except OSError:
+            pass
+
+
+def _sweep_stale_tmp_files(max_age: float = _TMP_MAX_AGE_SECONDS) -> None:
+    cutoff = time.time() - max_age
+    try:
+        tmp_files = list(OLLAMA_CACHE_DIR.glob("*.tmp"))
+    except OSError:
+        return
+    for path in tmp_files:
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
         except OSError:
             pass
 

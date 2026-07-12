@@ -20,8 +20,9 @@ module — the four ecosystem consumers migrate with zero breakage. Internals
 ``@patch("ollama_client.<name>")`` call sites keep resolving.
 
 Cache policy: deterministic prompts (``temperature <= CACHE_MAX_TEMP``) are
-keyed on ``sha256(model|temperature|prompt[|messages])`` and replayed without a
-network round-trip. Higher temperatures bypass the cache. Embeddings are NOT
+keyed by all output-affecting options (generate: model/temperature/num_ctx/prompt;
+chat: model/temperature/num_predict/num_ctx/think/messages) and replayed without
+a network round-trip. Higher temperatures bypass the cache. Embeddings are NOT
 cached (callers manage their own index).
 """
 

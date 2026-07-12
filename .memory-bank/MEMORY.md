@@ -5,7 +5,7 @@
 
 ## Identity
 - **What**: shared local-Ollama HTTP client for the cross-CLI harness (Claude/Codex/Gemini/OpenCode).
-- **Public**: https://github.com/heldigard/ollama-client · license MIT · SemVer 1.0.0.
+- **Public**: https://github.com/heldigard/ollama-client · license MIT · SemVer 1.2.0.
 - **Graduated** 2026-07-08 from `~/.claude/scripts/ollama_client.py` (was inline across 4 hooks/scripts).
 - **Stack**: Python ≥3.11, **stdlib only** (urllib/hashlib/json/argparse/base64/re), zero runtime deps.
 
@@ -28,7 +28,7 @@
 ## Commands
 - Install dev: `pip install -e .[test]` (or `uv sync`).
 - Test: `pytest` · Lint: `ruff check .` · Smoke: `python3 -c "import ollama_client; ollama_client.is_alive()"`.
-- Console: `ollama-client is-alive | generate --prompt "..." | embed --text "..." | ocr-image --image x.png`.
+- Console: `ollama-client is-alive | generate --prompt "..." | chat --prompt "..." | embed --text "..." | ocr-image --image x.png`.
 
 ## Entry points
 - Console: `ollama-client` → `ollama_client:main`.

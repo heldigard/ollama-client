@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import importlib
+import json
+
 from ollama_client._cache import _cache_key, _cache_key_chat, _strip_think_tags, _write_cache_text
 
 # --- _cache_key (generate) ---
@@ -72,6 +76,14 @@ def test_cache_key_chat_changes_on_content():
     a = [{"role": "user", "content": "x"}]
     b = [{"role": "user", "content": "y"}]
     assert _cache_key_chat("m", a, 0.2) != _cache_key_chat("m", b, 0.2)
+
+
+def test_cache_key_chat_changes_on_think_mode():
+    messages = [{"role": "user", "content": "x"}]
+    legacy_shape = _cache_key_chat("m", messages, 0.2, None, None)
+
+    assert legacy_shape == _cache_key_chat("m", messages, 0.2, think=False)
+    assert legacy_shape != _cache_key_chat("m", messages, 0.2, think=True)
 
 
 # --- _strip_think_tags ---
@@ -180,6 +192,85 @@ def test_chat_empty_cache_entry_falls_through(isolated_cache, fake_urlopen):
     fake_urlopen.set_response({"message": {"role": "assistant", "content": "live"}})
     assert chat(messages, model="m", temperature=0.0) == "live"
     assert fake_urlopen.calls
+
+
+def test_chat_cache_separates_think_modes(isolated_cache, fake_urlopen):
+    from ollama_client.chat import chat
+
+    messages = [{"role": "user", "content": "q"}]
+    fake_urlopen.set_response({"message": {"role": "assistant", "content": "direct"}})
+    assert chat(messages, model="m", temperature=0.0, think=False) == "direct"
+
+    fake_urlopen.set_response({"message": {"role": "assistant", "content": "reasoned"}})
+    assert chat(messages, model="m", temperature=0.0, think=True) == "reasoned"
+    assert chat(messages, model="m", temperature=0.0, think=False) == "direct"
+
+    assert len(fake_urlopen.calls) == 2
+    assert [call.payload["think"] for call in fake_urlopen.calls] == [False, True]
+
+
+def test_chat_ignores_legacy_cache_key(isolated_cache, fake_urlopen):
+    from ollama_client.chat import chat
+
+    messages = [{"role": "user", "content": "q"}]
+    serialized = json.dumps(messages, sort_keys=True, ensure_ascii=False)
+    legacy_raw = f"m\x1f0.0\x1fNone\x1fNone\x1f{serialized}"
+    legacy_key = hashlib.sha256(legacy_raw.encode("utf-8")).hexdigest()
+    (isolated_cache / f"{legacy_key}.txt").write_text("ambiguous legacy answer", encoding="utf-8")
+
+    fake_urlopen.set_response({"message": {"role": "assistant", "content": "live"}})
+    assert chat(messages, model="m", temperature=0.0, think=False) == "live"
+    assert len(fake_urlopen.calls) == 1
+
+
+def _set_cache_root(monkeypatch, cache_root):
+    for module_name in (
+        "ollama_client._cache",
+        "ollama_client._config",
+        "ollama_client.chat",
+        "ollama_client.generation",
+    ):
+        monkeypatch.setattr(importlib.import_module(module_name), "OLLAMA_CACHE_DIR", cache_root)
+
+
+def test_generate_cache_root_failure_falls_through(tmp_path, monkeypatch, fake_urlopen):
+    from ollama_client.generation import generate
+
+    cache_root = tmp_path / "cache-root"
+    cache_root.write_text("not a directory", encoding="utf-8")
+    _set_cache_root(monkeypatch, cache_root)
+    fake_urlopen.set_response({"response": "live"})
+
+    assert generate("prompt", model="m", temperature=0.0) == "live"
+    assert len(fake_urlopen.calls) == 1
+
+
+def test_chat_cache_root_failure_falls_through(tmp_path, monkeypatch, fake_urlopen):
+    from ollama_client.chat import chat
+
+    cache_root = tmp_path / "cache-root"
+    cache_root.write_text("not a directory", encoding="utf-8")
+    _set_cache_root(monkeypatch, cache_root)
+    fake_urlopen.set_response({"message": {"role": "assistant", "content": "live"}})
+
+    assert chat([{"role": "user", "content": "q"}], model="m", temperature=0.0) == "live"
+    assert len(fake_urlopen.calls) == 1
+
+
+def test_cache_false_does_not_create_cache_root(tmp_path, monkeypatch, fake_urlopen):
+    from ollama_client.chat import chat
+    from ollama_client.generation import generate
+
+    cache_root = tmp_path / "missing-cache-root"
+    _set_cache_root(monkeypatch, cache_root)
+
+    fake_urlopen.set_response({"response": "generated"})
+    assert generate("prompt", model="m", temperature=0.0, cache=False) == "generated"
+    fake_urlopen.set_response({"message": {"role": "assistant", "content": "chatted"}})
+    assert chat([{"role": "user", "content": "q"}], model="m", temperature=0.0, cache=False) == (
+        "chatted"
+    )
+    assert not cache_root.exists()
 
 
 def test_prune_cache_sweeps_stale_tmp_files(isolated_cache):

@@ -86,7 +86,11 @@ def _post(path: str, payload: dict, base_url: str, timeout: float) -> dict:
     try:
         # nosemgrep: dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = resp.read().decode("utf-8")
+            raw_body = resp.read()
+            try:
+                body = raw_body.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise OllamaRequestError(502, "invalid UTF-8 response") from exc
             try:
                 parsed = json.loads(body)
             except json.JSONDecodeError as exc:

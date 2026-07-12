@@ -44,7 +44,11 @@ def generate(
         _cache_path(_cache_key(model, prompt, temperature, num_ctx)) if cacheable else None
     )
     if cached_path is not None:
-        OLLAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            OLLAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            cached_path = None
+    if cached_path is not None:
         if cached_path.exists():
             try:
                 cached_text = cached_path.read_text(encoding="utf-8")

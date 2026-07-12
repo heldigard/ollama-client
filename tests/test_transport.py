@@ -65,6 +65,14 @@ def test_post_invalid_json_becomes_request_error(fake_urlopen):
     assert "invalid JSON response" in ei.value.body
 
 
+def test_post_invalid_utf8_becomes_request_error(fake_urlopen):
+    fake_urlopen.set_raw_response(b"\xff")
+    with pytest.raises(o.OllamaRequestError) as ei:
+        _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
+    assert ei.value.status == 502
+    assert ei.value.body == "invalid UTF-8 response"
+
+
 def test_post_non_object_json_becomes_request_error(fake_urlopen):
     fake_urlopen.set_raw_response(b'["not", "an", "object"]')
     with pytest.raises(o.OllamaRequestError) as ei:

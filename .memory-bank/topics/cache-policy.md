@@ -13,13 +13,14 @@ silently degrade quality. Only near-deterministic calls cache.
 
 ## Key composition (load-bearing details)
 - `generate`: `sha256(model | temperature | num_ctx | prompt)`.
-- `chat`: `sha256(model | temperature | num_predict | num_ctx | messages_json_sorted)`.
+- `chat`: `sha256(model | temperature | num_predict | num_ctx | think | messages_json_sorted)`.
 
 `num_ctx` is in the key because a call that **overflowed** context (returned
 empty) must NOT be replayed for the same prompt at a larger ctx.
 `num_predict` (chat) bounds output length — a short-bound call must not poison a
-long-bound call. `messages` is JSON-serialized with `sort_keys=True` for stable
-hashing.
+long-bound call. `think` changes the model's reasoning mode and output, so modes
+must not share entries. `messages` is JSON-serialized with `sort_keys=True` for
+stable hashing.
 
 ## Pruning
 `_prune_cache()` runs after each cache write, deleting oldest-mtime entries
@@ -34,6 +35,7 @@ callers want freshness.
 ## Corrupt-entry tolerance
 If a cache file read fails (OSError) or the cached content is unreadable, the
 call falls through to a live request (no crash). Cache writes that fail are
-silently ignored.
+silently ignored. Cache-root creation is also fail-open: an unusable path disables
+caching for that call but never blocks the live Ollama request.
 
 Related: [[shim-pattern]], [[mocking-semantics]].

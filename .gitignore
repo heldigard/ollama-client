@@ -19,3 +19,11 @@ htmlcov/
 # Harness artifacts (auto-setup marker, claudeignore metadata).
 .claude/
 .claudeignore
+
+# cli-orchestration: cross-CLI coordination registry (runtime noise, auto-managed)
+.memory-bank/agent-sessions.md
+.memory-bank/topics/agent-sessions.md
+.memory-bank/blocked-writes.log
+
+# cli-orchestration: objective/task runtime registry (auto-managed)
+.memory-bank/control-plane/

@@ -48,7 +48,9 @@ on a recoverable slow model.
 
 ## Pattern: deterministic-prompt cache, embeddings NEVER cached
 Generation/chat cached when `temperature <= CACHE_MAX_TEMP` (keyed on
-`sha256(model|temperature|prompt[|messages])`). Embeddings fresh every call
-(callers manage their own index). `_cache_key` includes `num_ctx`;
-`_cache_key_chat` includes `num_predict` + `num_ctx` — an overflowed (empty)
-result must NOT poison a larger-ctx call. See [[cache-policy]].
+all output-affecting inputs). Embeddings fresh every call (callers manage their
+own index). `_cache_key` includes `num_ctx`; `_cache_key_chat` includes
+`num_predict` + `num_ctx` + `think` — an overflowed (empty) result must NOT poison
+a larger-ctx call, and reasoning modes must never share answers. Cache I/O is
+best-effort: an unusable cache root must not block a live request. See
+[[cache-policy]].

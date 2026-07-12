@@ -81,12 +81,25 @@ def chat(
     """
     cacheable = cache and temperature <= CACHE_MAX_TEMP
     cached_path: Path | None = (
-        _cache_path(_cache_key_chat(model, messages, temperature, num_predict, num_ctx))
+        _cache_path(
+            _cache_key_chat(
+                model,
+                messages,
+                temperature,
+                num_predict,
+                num_ctx,
+                think=think,
+            )
+        )
         if cacheable
         else None
     )
     if cached_path is not None:
-        OLLAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            OLLAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            cached_path = None
+    if cached_path is not None:
         if cached_path.exists():
             try:
                 cached_text = cached_path.read_text(encoding="utf-8")

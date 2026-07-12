@@ -35,16 +35,19 @@ def _cache_key_chat(
     temperature: float,
     num_predict: int | None = None,
     num_ctx: int | None = None,
+    think: bool = False,
 ) -> str:
     """sha256 key for a ``chat`` call.
 
     ``num_predict`` bounds output length, so it MUST be in the key — otherwise a
     short-bound call poisons the cache for a long-bound call with the same
     prompt. ``num_ctx`` too: an overflowed (empty) result must not replay at a
-    larger ctx. ``messages`` is JSON-sorted for stable hashing.
+    larger ctx. ``think`` changes the model's reasoning mode and output, so it
+    must not share entries across modes. ``messages`` is JSON-sorted for stable
+    hashing.
     """
     raw = (
-        f"{model}\x1f{temperature}\x1f{num_predict}\x1f{num_ctx}"
+        f"{model}\x1f{temperature}\x1f{num_predict}\x1f{num_ctx}\x1f{think}"
         f"\x1f{json.dumps(messages, sort_keys=True, ensure_ascii=False)}"
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()

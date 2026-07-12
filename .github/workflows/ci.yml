@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install locked test environment
+        run: uv sync --extra test --locked
+
+      - name: Test
+        run: uv run --frozen pytest
+
+      - name: Lint
+        run: uv run --frozen ruff check .
+
+      - name: Check formatting
+        run: uv run --frozen ruff format --check .
+
+      - name: Type-check
+        run: uv run --frozen pyright
+
+      - name: Build wheel and source distribution
+        run: uv build
+
+      - name: Smoke installed wheel
+        run: |
+          uv venv .venv-wheel --python 3.11
+          uv pip install --python .venv-wheel/bin/python dist/*.whl
+          .venv-wheel/bin/python -c "import ollama_client; print(ollama_client.__version__)"
+          .venv-wheel/bin/python -m ollama_client --version
+          .venv-wheel/bin/ollama-client --version

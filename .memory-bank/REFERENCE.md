@@ -4,7 +4,8 @@
 | Constant | Value | Use |
 |----------|-------|-----|
 | `DEFAULT_GEN_MODEL` | `cryptidbleh/gemma4-claude-opus-4.6:latest` | default completion (3.4GB, ~115 tok/s) |
-| `DEFAULT_STRUCTURED_MODEL` | `SetneufPT/Qwopus3.5-4B-Coder-MTP_Q4_64k_8GB-GPU:latest` | codeq summary model |
+| `DEFAULT_SUMMARY_MODEL` | `batiai/gemma4-e4b:q4` | one-line code summaries |
+| `DEFAULT_STRUCTURED_MODEL` | `SetneufPT/Qwopus3.5-4B-Coder-MTP_Q4_64k_8GB-GPU:latest` | structured output/tool calls |
 | `DEFAULT_PDF_OCR_MODEL` | `hf.co/sahilchachra/Unlimited-OCR-GGUF:Q4_K_M` | vision OCR |
 | `DEFAULT_EMBED_MODEL` | `embeddinggemma` | 768-d vectors (MRR 0.724 winner) |
 | `PDF_OCR_PROMPT` | `ocr [img]` | model-specific OCR trigger |
@@ -20,12 +21,13 @@
 | `OLLAMA_CACHE_DIR` | `~/.claude/state/ollama-cache/` | cache root |
 
 ## Version
-- `__version__ = "1.0.0"` (SemVer). `require(min)` raises `RuntimeError` if older.
+- `__version__ = "1.2.0"` (SemVer). `require(min)` raises `RuntimeError` if older.
 
 ## CLI (`ollama-client`)
 ```
 ollama-client is-alive [--base-url URL]
 ollama-client generate --prompt "..." [--model X] [--temperature 0.2] [--no-cache] [--base-url URL]
+ollama-client chat --prompt "..." [--system "..."] [--model X] [--temperature 0.2] [--num-predict N] [--no-cache] [--base-url URL]
 ollama-client embed --text "..." [--model X] [--base-url URL]
 ollama-client ocr-image --image path.png [--model X] [--prompt "..."] [--base-url URL]
 ```

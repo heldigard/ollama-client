@@ -26,16 +26,17 @@ Public repo: https://github.com/heldigard/ollama-client
 | `embed(text, model, base_url)` | vector via `/api/embeddings` |
 | `ocr_image(bytes, model, prompt, base_url)` | vision OCR of a PNG/JPEG |
 
-Cache: deterministic prompts keyed on `sha256(model|temperature|prompt)`, stored
-under `OLLAMA_CACHE_DIR` (`~/.claude/state/ollama-cache/`), pruned beyond
-`CACHE_MAX_ENTRIES`.
+Cache: deterministic prompts are stored under `OLLAMA_CACHE_DIR`
+(`~/.claude/state/ollama-cache/`) and pruned beyond `CACHE_MAX_ENTRIES`. Generate
+keys include `(model, temperature, num_ctx, prompt)`; chat keys include `(model,
+temperature, num_predict, num_ctx, think, messages)`.
 
 ## Versioned contract
 
 ```python
 import ollama_client
-ollama_client.require("1.1")          # raises RuntimeError on drift
-ollama_client.__version__             # "1.1.0"
+ollama_client.require("1.2")          # raises RuntimeError on drift
+ollama_client.__version__             # "1.2.0"
 ```
 
 Consumers gate with `require("<min>")` to fail fast instead of hitting a cryptic

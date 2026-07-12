@@ -56,7 +56,7 @@ https://github.com/heldigard/ollama-client
   wins). Tests reach the module via `importlib.import_module("ollama_client.chat")`.
 
 ## Key Decisions
-- **SemVer 1.1.0 + `require()`** — consumers fail fast on version drift instead
+- **SemVer 1.2.0 + `require()`** — consumers fail fast on version drift instead
   of cryptic mid-run errors. Mirrors `cheap_llm`.
 - **Narrow chat fallback** — only Ollama's HTTP 400 automatic template-parser
   failure retries through `/api/generate`; unrelated bad requests still raise.
@@ -68,7 +68,9 @@ https://github.com/heldigard/ollama-client
   resolve and the wired import path is preserved for the four consumers.
 
 ## Cache policy
-Deterministic prompts (temperature ≤ `CACHE_MAX_TEMP`) keyed on
-`sha256(model|temperature|prompt[|messages])`, stored under `OLLAMA_CACHE_DIR`
-(`~/.claude/state/ollama-cache/`), pruned beyond `CACHE_MAX_ENTRIES`.
+Deterministic prompts (temperature ≤ `CACHE_MAX_TEMP`) use separate keys:
+generate includes `(model, temperature, num_ctx, prompt)`; chat includes `(model,
+temperature, num_predict, num_ctx, think, messages_json_sorted)`. Entries live
+under `OLLAMA_CACHE_DIR` (`~/.claude/state/ollama-cache/`) and are pruned beyond
+`CACHE_MAX_ENTRIES`.
 Embeddings are NOT cached (callers need fresh vectors).

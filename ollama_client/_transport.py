@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 
 from ._config import DEFAULT_URL
+from ._lock import serialize_lock
 
 
 class OllamaUnavailable(RuntimeError):
@@ -87,13 +88,22 @@ def _post(path: str, payload: dict, base_url: str, timeout: float) -> dict:
     Retries transient failures (HTTP 408/5xx — cold-load timeout, GPU
     contention, server blip) once before raising. Permanent 4xx errors and
     daemon-down (``OllamaUnavailable``) propagate immediately — retrying them
-    cannot help.
+    cannot help. When ``OLLAMA_SERIALIZE_LOCK`` is set, the whole call holds a
+    cross-process exclusive lock so concurrent consumers (hooks) don't load two
+    models into VRAM at once (opt-in; default off — see ``_lock``).
 
     Raises:
         OllamaRequestError: daemon reachable but the request failed on every
             attempt (HTTP 4xx/5xx or timeout) — model-specific, try next.
-        OllamaUnavailable: daemon unreachable / network down — abort the chain.
+        OllamaUnavailable: daemon reachable / network down — abort the chain.
     """
+    with serialize_lock():
+        return _post_with_retry(path, payload, base_url, timeout)
+
+
+def _post_with_retry(path: str, payload: dict, base_url: str, timeout: float) -> dict:
+    """Transient-retry loop, extracted so :func:`_post`'s ``with serialize_lock()``
+    does not push this loop past the vertical-slice nesting budget."""
     for attempt in range(_TRANSIENT_RETRIES + 1):
         try:
             return _post_once(path, payload, base_url, timeout)

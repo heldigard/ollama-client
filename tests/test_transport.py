@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import urllib.error
 from email.message import Message
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -103,10 +104,12 @@ def test_post_url_error_becomes_unavailable(fake_urlopen):
 
 def test_post_timeout_becomes_request_error_408(fake_urlopen):
     """TimeoutError -> OllamaRequestError(408) (slow cold load -> try next,
-    NOT abort). This mapping is load-bearing — see systemPatterns.md."""
+    NOT abort). This mapping is load-bearing — see systemPatterns.md.
+    Backoff patched to 0 so the retry does not stall the test suite."""
     fake_urlopen.raise_error(TimeoutError("read timed out"))
-    with pytest.raises(o.OllamaRequestError) as ei:
-        _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
+    with patch("ollama_client._transport._TRANSIENT_BACKOFF_SEC", 0.0):
+        with pytest.raises(o.OllamaRequestError) as ei:
+            _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
     assert ei.value.status == 408
 
 
@@ -143,3 +146,45 @@ def test_is_alive_false_on_url_error(fake_urlopen):
 def test_is_alive_false_on_timeout(fake_urlopen):
     fake_urlopen.raise_error(TimeoutError("slow"))
     assert o.is_alive("http://h:11434") is False
+
+
+# --- transient-load retry (2026-07-13: stop false hard-DQ / false fallback) ---
+
+
+def test_post_retries_transient_500_then_succeeds():
+    """A transient 5xx (server blip / GPU contention) is retried once and the
+    second attempt wins. Mirrors the ollama-bench 2026-07-13 Qwythos incident
+    where a champion emptied under load and was nearly dethroned."""
+    err = urllib.error.HTTPError("u", 500, "Server Error", Message(), io.BytesIO(b""))
+    good = MagicMock()
+    good.__enter__.return_value.read.return_value = b'{"response": "ok", "done": true}'
+    good.__exit__.return_value = None
+    with (
+        patch("urllib.request.urlopen", side_effect=[err, good]),
+        patch("ollama_client._transport._TRANSIENT_BACKOFF_SEC", 0.0),
+    ):
+        data = _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
+    assert data["response"] == "ok"
+
+
+def test_post_retries_transient_408_then_raises():
+    """A persistent transient timeout exhausts the retry and still raises the
+    model-specific error so the caller's fallback chain can proceed."""
+    with (
+        patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")) as mock_open,
+        patch("ollama_client._transport._TRANSIENT_BACKOFF_SEC", 0.0),
+    ):
+        with pytest.raises(o.OllamaRequestError) as ei:
+            _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
+    assert ei.value.status == 408
+    assert mock_open.call_count == 2  # 1 initial + 1 retry
+
+
+def test_post_no_retry_on_permanent_4xx():
+    """Permanent 4xx (model not found / bad request) is NOT retried — one call."""
+    err = urllib.error.HTTPError("u", 404, "Not Found", Message(), io.BytesIO(b"nope"))
+    with patch("urllib.request.urlopen", side_effect=err) as mock_open:
+        with pytest.raises(o.OllamaRequestError) as ei:
+            _post("/api/generate", {"model": "m"}, "http://h:11434", 10)
+    assert ei.value.status == 404
+    assert mock_open.call_count == 1

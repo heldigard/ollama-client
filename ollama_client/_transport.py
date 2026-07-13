@@ -8,6 +8,7 @@ two-class exception taxonomy that drives the fallback-chain behavior.
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -68,8 +69,43 @@ def _normalize_base_url(base_url: str) -> str:
     return url
 
 
+_TRANSIENT_RETRY_CODES = frozenset({408, 500, 503, 504})
+# One retry: production callers (smart-trim/codeq hooks) are latency-sensitive,
+# so we add at most one extra round-trip. A transient drop (GPU contention,
+# cold-load timeout, 5xx blip) clears within the backoff window; a genuinely
+# broken or missing model raises again on the second attempt and the caller
+# falls over to the next model in its chain. See the ollama-bench 2026-07-13
+# incident where a champion emptied under GPU contention and was nearly
+# dethroned by a false hard-DQ.
+_TRANSIENT_RETRIES = 1
+_TRANSIENT_BACKOFF_SEC = 3.0
+
+
 def _post(path: str, payload: dict, base_url: str, timeout: float) -> dict:
     """POST JSON to an Ollama endpoint; return parsed JSON.
+
+    Retries transient failures (HTTP 408/5xx — cold-load timeout, GPU
+    contention, server blip) once before raising. Permanent 4xx errors and
+    daemon-down (``OllamaUnavailable``) propagate immediately — retrying them
+    cannot help.
+
+    Raises:
+        OllamaRequestError: daemon reachable but the request failed on every
+            attempt (HTTP 4xx/5xx or timeout) — model-specific, try next.
+        OllamaUnavailable: daemon unreachable / network down — abort the chain.
+    """
+    for attempt in range(_TRANSIENT_RETRIES + 1):
+        try:
+            return _post_once(path, payload, base_url, timeout)
+        except OllamaRequestError as exc:
+            if exc.status not in _TRANSIENT_RETRY_CODES or attempt >= _TRANSIENT_RETRIES:
+                raise
+            time.sleep(_TRANSIENT_BACKOFF_SEC)
+    raise RuntimeError("unreachable")  # pragma: no cover
+
+
+def _post_once(path: str, payload: dict, base_url: str, timeout: float) -> dict:
+    """POST JSON to an Ollama endpoint; return parsed JSON (single attempt).
 
     Raises:
         OllamaRequestError: daemon reachable but this request failed (HTTP 4xx/5xx)

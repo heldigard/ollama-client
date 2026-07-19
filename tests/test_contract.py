@@ -53,7 +53,7 @@ def test_public_constants_exist():
         assert hasattr(o, name), f"missing public constant: {name}"
     assert o.DEFAULT_STRUCTURED_MODEL == DEFAULT_STRUCTURED_MODEL
     assert o.DEFAULT_SUMMARY_MODEL == DEFAULT_SUMMARY_MODEL
-    assert o.DEFAULT_SUMMARY_MODEL == "batiai/gemma4-e4b:q4"
+    assert o.DEFAULT_SUMMARY_MODEL == "hf.co/TeichAI/Qwen3.5-9B-Fable-5-v1-GGUF:Q4_K_M"
     assert o.DEFAULT_STRUCTURED_MODEL != o.DEFAULT_SUMMARY_MODEL
 
 

@@ -1,14 +1,19 @@
 # REFERENCE — ollama-client
 
-## Default models (2026-07-08)
-| Constant | Value | Use |
-|----------|-------|-----|
-| `DEFAULT_GEN_MODEL` | `cryptidbleh/gemma4-claude-opus-4.6:latest` | default completion (3.4GB, ~115 tok/s) |
-| `DEFAULT_SUMMARY_MODEL` | `batiai/gemma4-e4b:q4` | one-line code summaries |
-| `DEFAULT_STRUCTURED_MODEL` | `SetneufPT/Qwopus3.5-4B-Coder-MTP_Q4_64k_8GB-GPU:latest` | structured output/tool calls |
-| `DEFAULT_PDF_OCR_MODEL` | `hf.co/sahilchachra/Unlimited-OCR-GGUF:Q4_K_M` | vision OCR |
-| `DEFAULT_EMBED_MODEL` | `embeddinggemma` | 768-d vectors (MRR 0.724 winner) |
-| `PDF_OCR_PROMPT` | `ocr [img]` | model-specific OCR trigger |
+## Default models (aligned ollama-bench RANKING.md, 2026-07-18)
+Env overrides (`OLLAMA_*`) win; fallbacks below match bench PRIMARY roles.
+Source: `~/ollama-bench/RANKING.md` · host map `~/.config/dev/ollama-roles.json`.
+**Installed multi-model library is intentional winners — not for bulk prune.**
+
+| Constant | Default | Bench role |
+|----------|---------|------------|
+| `DEFAULT_GEN_MODEL` | `cryptidbleh/gemma4-claude-opus-4.6:latest` | improve PRIMARY |
+| `DEFAULT_SUMMARY_MODEL` | `hf.co/TeichAI/Qwen3.5-9B-Fable-5-v1-GGUF:Q4_K_M` | codeq_sum PRIMARY (was e4b; Qwythos is FALLBACK) |
+| `DEFAULT_STRUCTURED_MODEL` | `SetneufPT/Qwopus3.5-4B-Coder-MTP_Q4_64k_8GB-GPU:latest` | tool_call / structured PRIMARY |
+| `DEFAULT_PDF_OCR_MODEL` | `hf.co/sahilchachra/Unlimited-OCR-GGUF:Q4_K_M` | pdf_ocr PRIMARY |
+| `DEFAULT_EMBED_MODEL` | `embeddinggemma` | embedding PRIMARY |
+| `DEFAULT_URL` | env `OLLAMA_URL` / `OLLAMA_HOST` or `http://localhost:11434` | daemon |
+| `PDF_OCR_PROMPT` | `ocr [img]` | Unlimited-OCR trigger |
 
 ## Config constants
 | Constant | Value | Meaning |

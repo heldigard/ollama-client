@@ -43,13 +43,13 @@ Consumers gate with `require("<min>")` to fail fast instead of hitting a cryptic
 mid-run error on version drift.
 
 Role defaults are intentionally separate — a single "best model" constant would
-hide the distinction. Current champions (wiring validated 2026-07-09; source
+hide the distinction. Current champions (wiring validated 2026-07-18; source
 `~/ollama-bench/results_wiring_validation_20260709.md`):
 
 | constant | model | role |
 |---|---|---|
 | `DEFAULT_GEN_MODEL` | `cryptidbleh/gemma4-claude-opus-4.6` | general generation (`chat`→`generate` fallback) |
-| `DEFAULT_SUMMARY_MODEL` | `batiai/gemma4-e4b:q4` | one-line code summaries |
+| `DEFAULT_SUMMARY_MODEL` | `hf.co/TeichAI/Qwen3.5-9B-Fable-5-v1-GGUF:Q4_K_M` | one-line code summaries |
 | `DEFAULT_STRUCTURED_MODEL` | `SetneufPT/Qwopus3.5-4B-Coder-MTP` | structured tool-call |
 | `DEFAULT_PDF_OCR_MODEL` | `hf.co/sahilchachra/Unlimited-OCR-GGUF:Q4_K_M` | PDF OCR |
 | `DEFAULT_EMBED_MODEL` | `embeddinggemma` | embeddings |
@@ -60,7 +60,7 @@ hide the distinction. Current champions (wiring validated 2026-07-09; source
 pip install -e .          # or: uv sync
 ```
 
-Console script: `ollama-client is-alive [--base-url http://localhost:11434] | generate --prompt "..." | chat --prompt "..." [--system "..."] | embed --text "..." | ocr-image --image x.png`
+Console script: `ollama-client is-alive [--base-url http://localhost:11434] | models [--json] | generate --prompt "..." [--num-ctx N] [--timeout S] | chat --prompt "..." [--system "..."] [--think] [--num-ctx N] | embed --text "..." | ocr-image --image x.png`
 
 Also: `python -m ollama_client <command>` and `ollama-client --version`.
 

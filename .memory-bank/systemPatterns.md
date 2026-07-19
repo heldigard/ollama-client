@@ -54,3 +54,10 @@ own index). `_cache_key` includes `num_ctx`; `_cache_key_chat` includes
 a larger-ctx call, and reasoning modes must never share answers. Cache I/O is
 best-effort: an unusable cache root must not block a live request. See
 [[cache-policy]].
+
+## 2026-07-18 — Defaults follow ollama-bench winners + env map
+
+- **Decision**: `_config.py` defaults read `OLLAMA_GEN_MODEL`, `OLLAMA_SUMMARY_MODEL`, `OLLAMA_STRUCTURED_MODEL`, `OLLAMA_OCR_MODEL`, `OLLAMA_EMBED_MODEL`, `OLLAMA_URL`/`OLLAMA_HOST` with RANKING.md primaries as fallbacks.
+- **codeq_sum**: SUMMARY default = TeichAI (PRIMARY), not batiai-e4b or Qwythos.
+- **Do not** recommend deleting installed Ollama tags from this package’s POV — lineup owned by ollama-bench.
+

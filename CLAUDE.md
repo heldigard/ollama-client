@@ -74,3 +74,14 @@ temperature, num_predict, num_ctx, think, messages_json_sorted)`. Entries live u
 env override for XDG) and are pruned beyond `CACHE_MAX_ENTRIES` (env
 `OLLAMA_CACHE_MAX_ENTRIES`). Embed timeout: `OLLAMA_EMBED_TIMEOUT`.
 Embeddings are NOT cached (callers need fresh vectors).
+
+## Host / resilience knobs
+- **Version SSOT**: `ollama_client/_version.py::__version__` (hatch dynamic;
+  pyproject has no duplicate version string).
+- **Timeouts**: `OLLAMA_TIMEOUT` (generate/chat, default 120), `OLLAMA_EMBED_TIMEOUT`
+  (default 60).
+- **Serialize lock** (opt-in): `OLLAMA_SERIALIZE_LOCK=1` + optional `OLLAMA_LOCK_FILE`
+  — flocks every `_post` so concurrent hooks do not load two models into VRAM.
+- **Transient retry**: one retry on HTTP 408/500/503/504 (3s backoff); permanent
+  4xx and `OllamaUnavailable` do not retry.
+- Full env table: `README.md` and `.memory-bank/REFERENCE.md`.

@@ -33,7 +33,8 @@
 ## Entry points
 - Console: `ollama-client` → `ollama_client:main`.
 - Library: `import ollama_client` (the shim path wires the four consumers).
-- `require(min_version)` SemVer gate.
+- `require(min_version)` SemVer gate; version SSOT = `_version.py` (hatch dynamic).
+- Public history: `CHANGELOG.md`.
 
 ## Related topics
 - [[shim-pattern]] — how the graduated package stays wired to the harness.

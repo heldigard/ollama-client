@@ -68,3 +68,10 @@ best-effort: an unusable cache root must not block a live request. See
 - **Embed**: keep `/api/embeddings` primary; 404-only fallback to `/api/embed` preserves existing call sites and tests.
 - **Constraint**: generate/chat/embed signatures stay frozen; no new kwargs on those three.
 
+## 2026-07-19 — surrounding-config hardening (same 1.2.1)
+
+- **Decision**: hatch dynamic version from `_version.py` only (no dual `pyproject` version).
+- **Decision**: document full env surface (serialize lock, timeouts, cache) in README/REFERENCE; public CHANGELOG + project.urls; CI concurrency + Dependabot Actions.
+- **Align**: default embed tag `embeddinggemma:latest` matches `~/.config/dev/ollama-roles.json` when env is unset.
+- **Constraint**: no public signature changes; stdlib-only; single-job CI (no matrix — deferred).
+

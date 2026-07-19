@@ -35,6 +35,27 @@ Generate keys include `(model, temperature, num_ctx, prompt)`; chat keys include
 `(model, temperature, num_predict, num_ctx, think, messages)`. Embed timeout:
 `OLLAMA_EMBED_TIMEOUT` (default 60s).
 
+### Environment knobs
+
+| Env | Default | Effect |
+|-----|---------|--------|
+| `OLLAMA_URL` / `OLLAMA_HOST` | `http://localhost:11434` | daemon base (`HOST` may be `host:port`) |
+| `OLLAMA_GEN_MODEL` | improve PRIMARY | default generate/chat model |
+| `OLLAMA_SUMMARY_MODEL` | codeq_sum PRIMARY | default summary model |
+| `OLLAMA_STRUCTURED_MODEL` | tool_call PRIMARY | structured / tool-call model |
+| `OLLAMA_OCR_MODEL` | pdf_ocr PRIMARY | vision OCR model |
+| `OLLAMA_EMBED_MODEL` | `embeddinggemma:latest` | embedding model |
+| `OLLAMA_TIMEOUT` | `120` | generate/chat timeout (seconds) |
+| `OLLAMA_EMBED_TIMEOUT` | `60` | embed timeout (seconds) |
+| `OLLAMA_CACHE_DIR` | `~/.claude/state/ollama-cache/` | response cache root |
+| `OLLAMA_CACHE_MAX_ENTRIES` | `2000` | prune oldest beyond this count |
+| `OLLAMA_SERIALIZE_LOCK` | unset (off) | set to `1` to flock every `_post` across processes (VRAM-safe hooks) |
+| `OLLAMA_LOCK_FILE` | `~/.cache/ollama-client/ollama.lock` | lock path when serialize is on |
+| `OLLAMA_CLIENT_HOME` | `~/ollama-client` | package root for the harness shim only |
+
+Transport retries one transient failure (HTTP 408/500/503/504, 3s backoff) before
+raising. Permanent 4xx and daemon-down (`OllamaUnavailable`) do not retry.
+
 ## Versioned contract
 
 ```python
@@ -56,7 +77,9 @@ hide the distinction. Current champions (wiring validated 2026-07-18; source
 | `DEFAULT_SUMMARY_MODEL` | `hf.co/TeichAI/Qwen3.5-9B-Fable-5-v1-GGUF:Q4_K_M` | one-line code summaries |
 | `DEFAULT_STRUCTURED_MODEL` | `SetneufPT/Qwopus3.5-4B-Coder-MTP` | structured tool-call |
 | `DEFAULT_PDF_OCR_MODEL` | `hf.co/sahilchachra/Unlimited-OCR-GGUF:Q4_K_M` | PDF OCR |
-| `DEFAULT_EMBED_MODEL` | `embeddinggemma` | embeddings |
+| `DEFAULT_EMBED_MODEL` | `embeddinggemma:latest` | embeddings |
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Install
 

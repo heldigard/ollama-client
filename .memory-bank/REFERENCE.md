@@ -11,7 +11,7 @@ Source: `~/ollama-bench/RANKING.md` · host map `~/.config/dev/ollama-roles.json
 | `DEFAULT_SUMMARY_MODEL` | `hf.co/TeichAI/Qwen3.5-9B-Fable-5-v1-GGUF:Q4_K_M` | codeq_sum PRIMARY (was e4b; Qwythos is FALLBACK) |
 | `DEFAULT_STRUCTURED_MODEL` | `SetneufPT/Qwopus3.5-4B-Coder-MTP_Q4_64k_8GB-GPU:latest` | tool_call / structured PRIMARY |
 | `DEFAULT_PDF_OCR_MODEL` | `hf.co/sahilchachra/Unlimited-OCR-GGUF:Q4_K_M` | pdf_ocr PRIMARY |
-| `DEFAULT_EMBED_MODEL` | `embeddinggemma` | embedding PRIMARY |
+| `DEFAULT_EMBED_MODEL` | `embeddinggemma:latest` | embedding PRIMARY |
 | `DEFAULT_URL` | env `OLLAMA_URL` / `OLLAMA_HOST` or `http://localhost:11434` | daemon |
 | `PDF_OCR_PROMPT` | `ocr [img]` | Unlimited-OCR trigger |
 
@@ -24,9 +24,16 @@ Source: `~/ollama-bench/RANKING.md` · host map `~/.config/dev/ollama-roles.json
 | `CACHE_MAX_TEMP` | `0.3` | — | cache only near-deterministic |
 | `CACHE_MAX_ENTRIES` | `2000` | `OLLAMA_CACHE_MAX_ENTRIES` | prune oldest beyond |
 | `OLLAMA_CACHE_DIR` | `~/.claude/state/ollama-cache/` | `OLLAMA_CACHE_DIR` | cache root (XDG OK) |
+| — (opt-in) | off | `OLLAMA_SERIALIZE_LOCK=1` | flock every `_post` across processes |
+| — | `~/.cache/ollama-client/ollama.lock` | `OLLAMA_LOCK_FILE` | lock path when serialize on |
+
+Transport: one transient retry on HTTP 408/500/503/504 (3s backoff). Permanent
+4xx and daemon-down do not retry.
 
 ## Version
-- `__version__ = "1.2.1"` (SemVer). `require(min)` raises `RuntimeError` if older.
+- `__version__ = "1.2.1"` in `ollama_client/_version.py` (SemVer SSOT).
+- Hatch reads the same file (`[tool.hatch.version] path=…`); pyproject has `dynamic = ["version"]` — no dual strings.
+- `require(min)` raises `RuntimeError` if older.
 
 ## CLI (`ollama-client`)
 ```

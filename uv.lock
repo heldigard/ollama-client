@@ -31,7 +31,6 @@ wheels = [
 
 [[package]]
 name = "ollama-client"
-version = "1.2.0"
 source = { editable = "." }
 
 [package.optional-dependencies]

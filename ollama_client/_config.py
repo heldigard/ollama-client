@@ -23,8 +23,8 @@ DEFAULT_URL = (
     or "http://localhost:11434"
 ).rstrip("/")
 
-#: Default completion model (3.4GB, ~115 tok/s, universal fallback 2026-07-08).
-#: Role map: ``~/.config/dev/ollama-roles.json`` / ``OLLAMA_GEN_MODEL``.
+#: Default completion model (ollama-bench improve PRIMARY). Role map:
+#: ``~/.config/dev/ollama-roles.json`` / ``OLLAMA_GEN_MODEL``.
 DEFAULT_GEN_MODEL = os.environ.get("OLLAMA_GEN_MODEL", "cryptidbleh/gemma4-claude-opus-4.6:latest")
 
 #: One-line code summary model (codeq summary/context/relations champion).
@@ -51,10 +51,9 @@ DEFAULT_PDF_OCR_MODEL = os.environ.get(
 #: Ollama: generic prompts ("Extract the text") return empty; ``ocr [img]`` works.
 PDF_OCR_PROMPT = "ocr [img]"
 
-#: Embedding model (768-d, MRR 0.724 winner 2026-06-28). Tied with
-#: nomic-embed-text on context (both ~2K functional, NOT the 8K the modelfile
-#: claims); embeddinggemma wins on quality + consistency.
-DEFAULT_EMBED_MODEL = os.environ.get("OLLAMA_EMBED_MODEL", "embeddinggemma")
+#: Embedding model (768-d, MRR 0.724 winner 2026-06-28). Tag matches host map
+#: ``OLLAMA_EMBED_MODEL`` / ollama-roles.json (``embeddinggemma:latest``).
+DEFAULT_EMBED_MODEL = os.environ.get("OLLAMA_EMBED_MODEL", "embeddinggemma:latest")
 
 #: Generate/chat request timeout (seconds). Cold model loads can take ~60s.
 DEFAULT_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))

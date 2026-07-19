@@ -29,9 +29,9 @@ def test_list_models_filters_dicts(monkeypatch):
 
 
 def test_list_models_missing_or_non_list(monkeypatch):
-    monkeypatch.setattr(models_mod, "_get", lambda *a, **k: {})
+    monkeypatch.setattr(models_mod, "_get", lambda *_a, **_k: {})
     assert list_models() == []
-    monkeypatch.setattr(models_mod, "_get", lambda *a, **k: {"models": "nope"})
+    monkeypatch.setattr(models_mod, "_get", lambda *_a, **_k: {"models": "nope"})
     assert list_models() == []
 
 
@@ -45,7 +45,7 @@ def test_list_running_filters_dicts(monkeypatch):
 
 
 def test_list_models_propagates_unavailable(monkeypatch):
-    def boom(*a, **k):
+    def boom(*_a, **_k):
         raise o.OllamaUnavailable("down")
 
     monkeypatch.setattr(models_mod, "_get", boom)

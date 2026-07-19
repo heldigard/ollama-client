@@ -1,0 +1,8 @@
+# Keep GitHub Actions pins current; runtime stays stdlib-only (no pip deps).
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5

@@ -5,13 +5,13 @@
 
 ## Identity
 - **What**: shared local-Ollama HTTP client for the cross-CLI harness (Claude/Codex/Gemini/OpenCode).
-- **Public**: https://github.com/heldigard/ollama-client · license MIT · SemVer 1.2.0.
+- **Public**: https://github.com/heldigard/ollama-client · license MIT · SemVer 1.2.1.
 - **Graduated** 2026-07-08 from `~/.claude/scripts/ollama_client.py` (was inline across 4 hooks/scripts).
 - **Stack**: Python ≥3.11, **stdlib only** (urllib/hashlib/json/argparse/base64/re), zero runtime deps.
 
 ## Architecture (2026-07-08 refactor)
 - **Vertical-slice package** `ollama_client/` (was flat 605-LOC module). Submodules by responsibility:
-  `_config`, `_version`, `_transport`, `_cache`, `generation`, `chat`, `embedding`, `vision`, `cli`.
+  `_config`, `_version`, `_transport`, `_cache`, `generation`, `chat`, `embedding`, `vision`, `models`, `cli`.
 - `__init__.py` re-exports the **full public contract** → `import ollama_client` identical to flat module.
 - **Late-binding** in `generate_fallback`/`chat_fallback` → `@patch("ollama_client.generate")` still
   intercepts internal calls (preserves ecosystem test semantics). See [[mocking-semantics]].
@@ -28,7 +28,7 @@
 ## Commands
 - Install dev: `pip install -e .[test]` (or `uv sync`).
 - Test: `pytest` · Lint: `ruff check .` · Smoke: `python3 -c "import ollama_client; ollama_client.is_alive()"`.
-- Console: `ollama-client is-alive | generate --prompt "..." | chat --prompt "..." | embed --text "..." | ocr-image --image x.png`.
+- Console: `ollama-client is-alive | models | ps | generate --prompt "..." | chat --prompt "..." | embed --text "..." | ocr-image --image x.png`.
 
 ## Entry points
 - Console: `ollama-client` → `ollama_client:main`.

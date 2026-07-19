@@ -38,16 +38,13 @@ def test_cli_is_alive_base_url(monkeypatch):
 
 
 def test_cli_models_table(monkeypatch, capsys):
-    def fake_get(path: str, base_url: str, timeout: float) -> dict:
-        assert path == "/api/tags"
-        return {
-            "models": [
-                {"name": "gemma4:latest", "size": 3_400_000_000},
-                {"name": "embeddinggemma", "size": 620_000_000},
-            ]
-        }
+    def fake_list(base_url: str = "", *, timeout: float = 5.0) -> list[dict]:
+        return [
+            {"name": "gemma4:latest", "size": 3_400_000_000},
+            {"name": "embeddinggemma", "size": 620_000_000},
+        ]
 
-    monkeypatch.setattr(cli_mod, "_get", fake_get)
+    monkeypatch.setattr(cli_mod, "list_models", fake_list)
     rc = cli_mod._cli(["models"])
     assert rc == 0
     out = capsys.readouterr().out
@@ -56,19 +53,49 @@ def test_cli_models_table(monkeypatch, capsys):
 
 
 def test_cli_models_json(monkeypatch, capsys):
-    payload = {"models": [{"name": "m1", "size": 1}]}
-    monkeypatch.setattr(cli_mod, "_get", lambda *a, **_kw: payload)
+    models = [{"name": "m1", "size": 1}]
+    monkeypatch.setattr(cli_mod, "list_models", lambda *a, **_kw: models)
     rc = cli_mod._cli(["models", "--json"])
     assert rc == 0
-    assert json.loads(capsys.readouterr().out) == payload["models"]
+    assert json.loads(capsys.readouterr().out) == models
 
 
 def test_cli_models_unavailable_exit_2(monkeypatch):
     def boom(*a, **_kw):
         raise o.OllamaUnavailable("down")
 
-    monkeypatch.setattr(cli_mod, "_get", boom)
+    monkeypatch.setattr(cli_mod, "list_models", boom)
     assert cli_mod._cli(["models"]) == 2
+
+
+# --- ps ---
+
+
+def test_cli_ps_table(monkeypatch, capsys):
+    def fake_list(base_url: str = "", *, timeout: float = 5.0) -> list[dict]:
+        return [{"name": "gemma4:latest", "size_vram": 3_400_000_000}]
+
+    monkeypatch.setattr(cli_mod, "list_running", fake_list)
+    rc = cli_mod._cli(["ps"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "gemma4:latest" in out and "3.4 GB" in out
+
+
+def test_cli_ps_json(monkeypatch, capsys):
+    models = [{"name": "m1", "size_vram": 1}]
+    monkeypatch.setattr(cli_mod, "list_running", lambda *a, **_kw: models)
+    rc = cli_mod._cli(["ps", "--json"])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out) == models
+
+
+def test_cli_ps_unavailable_exit_2(monkeypatch):
+    def boom(*a, **_kw):
+        raise o.OllamaUnavailable("down")
+
+    monkeypatch.setattr(cli_mod, "list_running", boom)
+    assert cli_mod._cli(["ps"]) == 2
 
 
 # --- generate ---

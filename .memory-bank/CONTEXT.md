@@ -25,9 +25,9 @@ Flat 605-LOC module → **vertical-slice package** `ollama_client/`. Decision: t
 module was marked `vs-soft-allow` (single-responsibility HTTP client); the user
 explicitly requested vertical slices and the shim already declared
 "(vertical-slice project)". Resolved by: package split by responsibility
-(transport / cache / version / generation / chat / embedding / vision / cli) with
-`__init__.py` re-exporting the **identical public contract**. Zero breaking change
-to the four consumers. Late-binding preserves mocking semantics. See
+(transport / cache / version / generation / chat / embedding / vision / models / cli)
+with `__init__.py` re-exporting the **identical public contract**. Zero breaking
+change to the four consumers. Late-binding preserves mocking semantics. See
 [[mocking-semantics]].
 
 ## Operations (public API)
@@ -35,7 +35,9 @@ to the four consumers. Late-binding preserves mocking semantics. See
 - `generate_fallback(prompt, models, *, ...) -> tuple[str|None, str|None]`
 - `chat(messages, model, *, temperature, num_predict, think, timeout, base_url, cache, num_ctx) -> str|None`
 - `chat_fallback(messages, models, *, ...) -> tuple[str|None, str|None]`
-- `embed(text, *, model, timeout, base_url) -> list[float]|None`
+- `embed(text, *, model, timeout, base_url) -> list[float]|None` — `/api/embeddings`, 404→`/api/embed`
+- `list_models(base_url, *, timeout) -> list[dict]` — `GET /api/tags`
+- `list_running(base_url, *, timeout) -> list[dict]` — `GET /api/ps`
 - `ocr_image(image_bytes, *, model, prompt, temperature, num_predict, timeout, base_url) -> str|None`
 - `is_alive(base_url, timeout) -> bool`
 - `require(min_version) -> str` · `__version__`

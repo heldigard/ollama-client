@@ -197,7 +197,12 @@ def _get(path: str, base_url: str, timeout: float) -> dict:
             raise OllamaRequestError(502, f"unexpected JSON response: {raw_body[:200]!r}")
         return parsed
     except urllib.error.HTTPError as exc:
-        raise OllamaRequestError(exc.code, "") from exc
+        # Mirror _post: surface response body for diagnostics (model-not-found, etc.).
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+        except OSError:
+            body = ""
+        raise OllamaRequestError(exc.code, body) from exc
     except TimeoutError as exc:
         raise OllamaRequestError(408, f"timeout: {exc}") from exc
     except (urllib.error.URLError, OSError) as exc:

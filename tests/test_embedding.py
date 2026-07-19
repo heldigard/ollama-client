@@ -8,7 +8,7 @@ from email.message import Message
 import pytest
 
 import ollama_client as o
-from ollama_client.embedding import _embed_once, embed
+from ollama_client.embedding import _embed_once, _vector_from_response, embed
 
 
 def test_embed_once_success(fake_urlopen):
@@ -47,11 +47,49 @@ def test_embed_success_first_try(fake_urlopen):
 
 
 def test_embed_request_error_short_text_no_retry(fake_urlopen):
-    """Text <= 512: fails on first try, does not retry."""
-    fake_urlopen.raise_error(urllib.error.HTTPError("url", 404, "Not Found", Message(), None))
+    """Text <= 512: permanent non-404 error fails once, no halved-text retry.
+
+    Use HTTP 400 (not 404 → /api/embed fallback, not 5xx → transport retry).
+    """
+    fake_urlopen.raise_error(urllib.error.HTTPError("url", 400, "Bad Request", Message(), None))
     vec = embed("hello", model="m", timeout=10, base_url="http://h:11434")
     assert vec is None
     assert len(fake_urlopen.calls) == 1  # only 1 attempt
+
+
+def test_embed_once_404_falls_back_to_api_embed(monkeypatch):
+    """HTTP 404 on /api/embeddings retries once with /api/embed + input."""
+    import ollama_client.embedding as emb_mod
+
+    calls: list[tuple[str, dict]] = []
+
+    def fake_post(path, payload, base_url, timeout):
+        calls.append((path, payload))
+        if path == "/api/embeddings":
+            raise o.OllamaRequestError(404, "not found")
+        assert path == "/api/embed"
+        return {"embeddings": [[0.1, 0.2]]}
+
+    monkeypatch.setattr(emb_mod, "_post", fake_post)
+    vec = _embed_once("hello", model="m", timeout=10, base_url="http://h:11434")
+    assert vec == [0.1, 0.2]
+    assert calls == [
+        ("/api/embeddings", {"model": "m", "prompt": "hello"}),
+        ("/api/embed", {"model": "m", "input": "hello"}),
+    ]
+
+
+def test_vector_from_response_embeddings_array():
+    assert _vector_from_response({"embeddings": [[1.0, 2.0]]}) == [1.0, 2.0]
+    assert _vector_from_response({"embedding": [3.0]}) == [3.0]
+    assert _vector_from_response({}) is None
+    assert _vector_from_response({"embeddings": []}) is None
+
+
+def test_embed_once_embeddings_zero_field(fake_urlopen):
+    fake_urlopen.set_response({"embeddings": [[0.4, 0.5]]})
+    vec = _embed_once("hi", model="m", timeout=10, base_url="http://h:11434")
+    assert vec == [0.4, 0.5]
 
 
 def test_embed_request_error_long_text_retries(fake_urlopen):

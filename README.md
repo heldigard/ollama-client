@@ -8,7 +8,7 @@ script consumed by four projects: `codeq`, `smart-trim`, `prompt-improve`,
 `web-research`). This project gives it a SemVer contract (`require()`), a
 `pyproject.toml`, a real install path, and a **vertical-slice package** layout
 (submodules: `_config`, `_version`, `_transport`, `_cache`, `generation`,
-`chat`, `embedding`, `vision`, `cli`) — mirroring how `cheap-llm` graduated
+`chat`, `embedding`, `vision`, `models`, `cli`) — mirroring how `cheap-llm` graduated
 before it. The original path remains at `~/.claude/scripts/ollama_client.py`
 as a thin **shim** that re-exports from the package here, so every existing
 consumer keeps working untouched (`import ollama_client` is byte-identical).
@@ -23,20 +23,24 @@ Public repo: https://github.com/heldigard/ollama-client
 | `generate(prompt, model, temperature, ...)` | one-shot completion (cached when temp ≤ `CACHE_MAX_TEMP`) |
 | `generate_fallback(prompt, models, ...)` | try a model list in order → `(text, model)` |
 | `chat(messages, model, ...)` / `chat_fallback(...)` | chat completion; retries `/api/generate` only for Ollama's template-parser HTTP 400 |
-| `embed(text, model, base_url)` | vector via `/api/embeddings` |
+| `embed(text, model, base_url)` | vector via `/api/embeddings` (404 → `/api/embed` + `input`) |
+| `list_models(base_url)` | installed models (`GET /api/tags`) |
+| `list_running(base_url)` | loaded models (`GET /api/ps`) |
 | `ocr_image(bytes, model, prompt, base_url)` | vision OCR of a PNG/JPEG |
 
 Cache: deterministic prompts are stored under `OLLAMA_CACHE_DIR`
-(`~/.claude/state/ollama-cache/`) and pruned beyond `CACHE_MAX_ENTRIES`. Generate
-keys include `(model, temperature, num_ctx, prompt)`; chat keys include `(model,
-temperature, num_predict, num_ctx, think, messages)`.
+(`~/.claude/state/ollama-cache/` by default; override with env `OLLAMA_CACHE_DIR`
+for XDG) and pruned beyond `CACHE_MAX_ENTRIES` (env `OLLAMA_CACHE_MAX_ENTRIES`).
+Generate keys include `(model, temperature, num_ctx, prompt)`; chat keys include
+`(model, temperature, num_predict, num_ctx, think, messages)`. Embed timeout:
+`OLLAMA_EMBED_TIMEOUT` (default 60s).
 
 ## Versioned contract
 
 ```python
 import ollama_client
 ollama_client.require("1.2")          # raises RuntimeError on drift
-ollama_client.__version__             # "1.2.0"
+ollama_client.__version__             # "1.2.1"
 ```
 
 Consumers gate with `require("<min>")` to fail fast instead of hitting a cryptic
@@ -60,7 +64,7 @@ hide the distinction. Current champions (wiring validated 2026-07-18; source
 pip install -e .          # or: uv sync
 ```
 
-Console script: `ollama-client is-alive [--base-url http://localhost:11434] | models [--json] | generate --prompt "..." [--num-ctx N] [--timeout S] | chat --prompt "..." [--system "..."] [--think] [--num-ctx N] | embed --text "..." | ocr-image --image x.png`
+Console script: `ollama-client is-alive [--base-url http://localhost:11434] | models [--json] | ps [--json] | generate --prompt "..." [--num-ctx N] [--timeout S] | chat --prompt "..." [--system "..."] [--think] [--num-ctx N] | embed --text "..." | ocr-image --image x.png`
 
 Also: `python -m ollama_client <command>` and `ollama-client --version`.
 

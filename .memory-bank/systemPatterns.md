@@ -61,3 +61,10 @@ best-effort: an unusable cache root must not block a live request. See
 - **codeq_sum**: SUMMARY default = TeichAI (PRIMARY), not batiai-e4b or Qwythos.
 - **Do not** recommend deleting installed Ollama tags from this package’s POV — lineup owned by ollama-bench.
 
+## 2026-07-19 — 1.2.1 inventory + host knobs (additive)
+
+- **Decision**: expose `list_models` / `list_running` as library API (not CLI-only); env knobs for cache path/size and embed timeout without changing default harness paths.
+- **Why**: native multi-CLI desktop needs VRAM-resident visibility (`/api/ps`) and XDG-friendly cache overrides; public package should not hard-wire only Claude-home paths.
+- **Embed**: keep `/api/embeddings` primary; 404-only fallback to `/api/embed` preserves existing call sites and tests.
+- **Constraint**: generate/chat/embed signatures stay frozen; no new kwargs on those three.
+

@@ -1,4 +1,4 @@
-"""Embedding vectors (``/api/embeddings``).
+"""Embedding vectors (``/api/embeddings``, with ``/api/embed`` 404 fallback).
 
 Embeddings are deliberately NOT cached (callers usually need fresh vectors and
 manage their own index). See ``topics/cache-policy.md``.
@@ -10,6 +10,19 @@ from ._config import DEFAULT_EMBED_MODEL, DEFAULT_URL, EMBED_TIMEOUT
 from ._transport import OllamaRequestError, OllamaUnavailable, _post
 
 
+def _vector_from_response(data: dict) -> list[float] | None:
+    """Parse either legacy ``embedding`` or new-style ``embeddings[0]``."""
+    vec = data.get("embedding")
+    if isinstance(vec, list) and vec:
+        return [float(x) for x in vec]
+    embeddings = data.get("embeddings")
+    if isinstance(embeddings, list) and embeddings:
+        first = embeddings[0]
+        if isinstance(first, list) and first:
+            return [float(x) for x in first]
+    return None
+
+
 def _embed_once(
     text: str,
     model: str,
@@ -18,8 +31,12 @@ def _embed_once(
 ) -> list[float] | None:
     """Single embedding attempt.
 
-    Returns the vector, or ``None`` if the text is blank, or
-    Ollama returned no ``embedding`` field.
+    Prefers ``/api/embeddings`` with ``prompt``. On HTTP 404 only (endpoint
+    removed/renamed on some Ollama builds), retries once with ``/api/embed``
+    and ``input``.
+
+    Returns the vector, or ``None`` if the text is blank, or Ollama returned no
+    embedding field.
 
     Raises:
         OllamaRequestError: if the request failed (HTTP 4xx/5xx/timeout).
@@ -27,16 +44,23 @@ def _embed_once(
     """
     if not text.strip():
         return None
-    data = _post(
-        "/api/embeddings",
-        {"model": model, "prompt": text},
-        base_url,
-        timeout,
-    )
-    vec = data.get("embedding")
-    if isinstance(vec, list) and vec:
-        return [float(x) for x in vec]
-    return None
+    try:
+        data = _post(
+            "/api/embeddings",
+            {"model": model, "prompt": text},
+            base_url,
+            timeout,
+        )
+    except OllamaRequestError as exc:
+        if exc.status != 404:
+            raise
+        data = _post(
+            "/api/embed",
+            {"model": model, "input": text},
+            base_url,
+            timeout,
+        )
+    return _vector_from_response(data)
 
 
 def embed(
@@ -55,6 +79,9 @@ def embed(
     under a char budget — Ollama then answers HTTP 500 and the chunk would be
     skipped. Rather than drop it, retry once with the text halved: a
     half-content embedding still serves recall better than none.
+
+    On HTTP 404 from ``/api/embeddings``, :func:`_embed_once` retries once with
+    the newer ``/api/embed`` endpoint (``input`` field).
     """
     try:
         vec = _embed_once(text, model, timeout, base_url)

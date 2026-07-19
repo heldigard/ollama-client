@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ollama-client"
-version = "1.2.0"
+version = "1.2.1"
 description = "Shared local-Ollama HTTP client for the cross-CLI harness: generate / generate_fallback / chat / embed / ocr_image over http://localhost:11434, with a deterministic-prompt response cache and a versioned public API (SemVer + require() gate) for decoupled ecosystem consumers. Graduated from ~/.claude/scripts/ollama_client.py."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,6 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = []

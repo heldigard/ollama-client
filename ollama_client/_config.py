@@ -60,14 +60,23 @@ DEFAULT_EMBED_MODEL = os.environ.get("OLLAMA_EMBED_MODEL", "embeddinggemma")
 DEFAULT_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
 
 #: Embedding request timeout (seconds). Embeds are fast; fail sooner.
-EMBED_TIMEOUT = 60
+#: Override with ``OLLAMA_EMBED_TIMEOUT``.
+EMBED_TIMEOUT = int(os.environ.get("OLLAMA_EMBED_TIMEOUT", "60"))
 
 #: Cache only near-deterministic outputs (temperature at/below this).
 CACHE_MAX_TEMP = 0.3
 
-#: Prune oldest cache entries beyond this count.
-CACHE_MAX_ENTRIES = 2000
+#: Prune oldest cache entries beyond this count. Override with
+#: ``OLLAMA_CACHE_MAX_ENTRIES``.
+CACHE_MAX_ENTRIES = int(os.environ.get("OLLAMA_CACHE_MAX_ENTRIES", "2000"))
 
 #: Response cache root. Deterministic prompts (temp <= CACHE_MAX_TEMP) are
 #: replayed from here without a network round-trip. Embeddings are NOT cached.
-OLLAMA_CACHE_DIR = Path.home() / ".claude" / "state" / "ollama-cache"
+#: Default stays under ``~/.claude/state/`` for harness compat; override with
+#: ``OLLAMA_CACHE_DIR`` (e.g. XDG: ``$XDG_CACHE_HOME/ollama-client``).
+OLLAMA_CACHE_DIR = Path(
+    os.environ.get(
+        "OLLAMA_CACHE_DIR",
+        str(Path.home() / ".claude" / "state" / "ollama-cache"),
+    )
+).expanduser()

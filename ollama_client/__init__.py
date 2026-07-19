@@ -11,6 +11,7 @@ Public operations:
   - :func:`chat` / :func:`chat_fallback`          — messages-style completion
   - :func:`embed`                                  — vector for a single text
   - :func:`ocr_image`                              — vision OCR of an image
+  - :func:`list_models` / :func:`list_running`     — installed / loaded models
   - :func:`is_alive`                               — daemon liveness
 
 This is a vertical-slice package. ``__init__`` re-exports the full public
@@ -72,6 +73,7 @@ from .chat import chat, chat_fallback
 from .cli import _cli, main
 from .embedding import _embed_once, embed
 from .generation import generate, generate_fallback
+from .models import list_models, list_running
 from .vision import ocr_image
 
 __all__ = [
@@ -82,6 +84,8 @@ __all__ = [
     "chat_fallback",
     "embed",
     "ocr_image",
+    "list_models",
+    "list_running",
     "OllamaUnavailable",
     "OllamaRequestError",
     "require",

@@ -15,28 +15,34 @@ Source: `~/ollama-bench/RANKING.md` · host map `~/.config/dev/ollama-roles.json
 | `DEFAULT_URL` | env `OLLAMA_URL` / `OLLAMA_HOST` or `http://localhost:11434` | daemon |
 | `PDF_OCR_PROMPT` | `ocr [img]` | Unlimited-OCR trigger |
 
-## Config constants
-| Constant | Value | Meaning |
-|----------|-------|---------|
-| `DEFAULT_URL` | `http://localhost:11434` | daemon base |
-| `DEFAULT_TIMEOUT` | `120` | generate/chat seconds |
-| `EMBED_TIMEOUT` | `60` | embed seconds |
-| `CACHE_MAX_TEMP` | `0.3` | cache only near-deterministic |
-| `CACHE_MAX_ENTRIES` | `2000` | prune oldest beyond |
-| `OLLAMA_CACHE_DIR` | `~/.claude/state/ollama-cache/` | cache root |
+## Config constants / env knobs
+| Constant | Default | Env override | Meaning |
+|----------|---------|--------------|---------|
+| `DEFAULT_URL` | `http://localhost:11434` | `OLLAMA_URL` / `OLLAMA_HOST` | daemon base |
+| `DEFAULT_TIMEOUT` | `120` | `OLLAMA_TIMEOUT` | generate/chat seconds |
+| `EMBED_TIMEOUT` | `60` | `OLLAMA_EMBED_TIMEOUT` | embed seconds |
+| `CACHE_MAX_TEMP` | `0.3` | — | cache only near-deterministic |
+| `CACHE_MAX_ENTRIES` | `2000` | `OLLAMA_CACHE_MAX_ENTRIES` | prune oldest beyond |
+| `OLLAMA_CACHE_DIR` | `~/.claude/state/ollama-cache/` | `OLLAMA_CACHE_DIR` | cache root (XDG OK) |
 
 ## Version
-- `__version__ = "1.2.0"` (SemVer). `require(min)` raises `RuntimeError` if older.
+- `__version__ = "1.2.1"` (SemVer). `require(min)` raises `RuntimeError` if older.
 
 ## CLI (`ollama-client`)
 ```
 ollama-client is-alive [--base-url URL]
-ollama-client generate --prompt "..." [--model X] [--temperature 0.2] [--no-cache] [--base-url URL]
-ollama-client chat --prompt "..." [--system "..."] [--model X] [--temperature 0.2] [--num-predict N] [--no-cache] [--base-url URL]
-ollama-client embed --text "..." [--model X] [--base-url URL]
+ollama-client models [--json] [--base-url URL]
+ollama-client ps [--json] [--base-url URL]
+ollama-client generate --prompt "..." [--model X] [--temperature 0.2] [--num-ctx N] [--timeout S] [--no-cache] [--base-url URL]
+ollama-client chat --prompt "..." [--system "..."] [--model X] [--temperature 0.2] [--num-predict N] [--num-ctx N] [--think] [--timeout S] [--no-cache] [--base-url URL]
+ollama-client embed --text "..." [--model X] [--timeout S] [--base-url URL]
 ollama-client ocr-image --image path.png [--model X] [--prompt "..."] [--base-url URL]
 ```
 Exit codes: 0 ok · 1 is-alive false · 2 unavailable · 3 empty OCR.
+
+Library helpers: `list_models` / `list_running` (dict entries only; empty if missing).
+
+Embed: prefer `/api/embeddings` + `prompt`; on HTTP 404 only, retry `/api/embed` + `input`. Parses `embedding` or `embeddings[0]`.
 
 ## Consumer wiring
 - Shim: `~/.claude/scripts/ollama_client.py` → loads `~/ollama-client/ollama_client/` package.

@@ -19,11 +19,12 @@ from ._config import (
     EMBED_TIMEOUT,
     PDF_OCR_PROMPT,
 )
-from ._transport import OllamaUnavailable, _get, is_alive
+from ._transport import OllamaUnavailable, is_alive
 from ._version import __version__
 from .chat import chat
 from .embedding import embed
 from .generation import generate
+from .models import list_models, list_running
 from .vision import ocr_image
 
 
@@ -36,6 +37,9 @@ def _cli(argv: list[str] | None = None) -> int:
     m = sub.add_parser("models", help="List installed models (/api/tags)")
     m.add_argument("--base-url", default=DEFAULT_URL)
     m.add_argument("--json", action="store_true", help="Print the raw models array as JSON")
+    p = sub.add_parser("ps", help="List currently loaded models (/api/ps)")
+    p.add_argument("--base-url", default=DEFAULT_URL)
+    p.add_argument("--json", action="store_true", help="Print the raw models array as JSON")
     g = sub.add_parser("generate", help="One-shot completion")
     g.add_argument("--prompt", required=True)
     g.add_argument("--model", default=DEFAULT_GEN_MODEL)
@@ -72,17 +76,32 @@ def _cli(argv: list[str] | None = None) -> int:
 
     if args.command == "models":
         try:
-            data = _get("/api/tags", args.base_url, timeout=5.0)
+            models = list_models(base_url=args.base_url)
         except OllamaUnavailable as exc:
             print(f"ollama unavailable: {exc}", file=sys.stderr)
             return 2
-        models = data.get("models") or []
         if args.json:
             print(json.dumps(models))
             return 0
         for entry in models:
             name = entry.get("name", "?")
             size_gb = entry.get("size", 0) / 1e9
+            print(f"{name}\t{size_gb:.1f} GB")
+        return 0
+
+    if args.command == "ps":
+        try:
+            models = list_running(base_url=args.base_url)
+        except OllamaUnavailable as exc:
+            print(f"ollama unavailable: {exc}", file=sys.stderr)
+            return 2
+        if args.json:
+            print(json.dumps(models))
+            return 0
+        for entry in models:
+            name = entry.get("name", "?")
+            size_v = entry.get("size_vram") or entry.get("size") or 0
+            size_gb = size_v / 1e9
             print(f"{name}\t{size_gb:.1f} GB")
         return 0
 

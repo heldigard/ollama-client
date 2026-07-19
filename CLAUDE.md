@@ -1,7 +1,7 @@
 # Project: ollama-client
 
 Shared local-Ollama HTTP client for the cross-CLI harness. Graduated from
-`~/.claude/scripts/ollama_client.py` (2026-07-08). Public:
+`~/.claude/scripts/ollama_client.py` (2026-07-08). SemVer **1.2.1**. Public:
 https://github.com/heldigard/ollama-client
 
 ## Commands
@@ -10,14 +10,14 @@ https://github.com/heldigard/ollama-client
 - Lint: `ruff check .`
 - Format check (read-only): `ruff format --check .`
 - Smoke: `python3 -m ollama_client is-alive [--base-url http://localhost:11434]` → exit 0 if daemon answers
-- Console: `ollama-client is-alive | models [--json] | generate --prompt "..." [--num-ctx N] | chat --prompt "..." [--system "..."] [--think] | embed --text "..." | ocr-image --image x.png`
+- Console: `ollama-client is-alive | models [--json] | ps [--json] | generate --prompt "..." [--num-ctx N] | chat --prompt "..." [--system "..."] [--think] | embed --text "..." | ocr-image --image x.png`
 
 ## Stack
 - Python ≥ 3.11
 - **stdlib only** (urllib.request, hashlib, json, argparse, base64, re) — zero runtime deps
 - **Vertical-slice package** `ollama_client/` (one responsibility: talk to Ollama),
   split by sub-concern: `_config`, `_version`, `_transport`, `_cache`,
-  `generation`, `chat`, `embedding`, `vision`, `cli`. `__init__.py` re-exports
+  `generation`, `chat`, `embedding`, `vision`, `models`, `cli`. `__init__.py` re-exports
   the full public contract so `import ollama_client` is identical to the prior
   flat module.
 
@@ -34,7 +34,7 @@ https://github.com/heldigard/ollama-client
 ## Architecture (why the package split)
 - Each submodule is one sub-concern: transport (HTTP + exceptions), cache
   (key + prune + think-strip), version (SemVer gate), then one file per domain
-  op (generation, chat, embedding, vision) + the CLI dispatcher. `__init__.py`
+  op (generation, chat, embedding, vision, models) + the CLI dispatcher. `__init__.py`
   is the public surface (re-exports + `__all__`).
 - **Late-binding** in `generate_fallback` / `chat_fallback` (they late-import
   `generate` / `chat` from the public package) preserves the flat-module mocking
@@ -56,7 +56,7 @@ https://github.com/heldigard/ollama-client
   wins). Tests reach the module via `importlib.import_module("ollama_client.chat")`.
 
 ## Key Decisions
-- **SemVer 1.2.0 + `require()`** — consumers fail fast on version drift instead
+- **SemVer 1.2.1 + `require()`** — consumers fail fast on version drift instead
   of cryptic mid-run errors. Mirrors `cheap_llm`.
 - **Narrow chat fallback** — only Ollama's HTTP 400 automatic template-parser
   failure retries through `/api/generate`; unrelated bad requests still raise.
@@ -70,7 +70,7 @@ https://github.com/heldigard/ollama-client
 ## Cache policy
 Deterministic prompts (temperature ≤ `CACHE_MAX_TEMP`) use separate keys:
 generate includes `(model, temperature, num_ctx, prompt)`; chat includes `(model,
-temperature, num_predict, num_ctx, think, messages_json_sorted)`. Entries live
-under `OLLAMA_CACHE_DIR` (`~/.claude/state/ollama-cache/`) and are pruned beyond
-`CACHE_MAX_ENTRIES`.
+temperature, num_predict, num_ctx, think, messages_json_sorted)`. Entries live under `OLLAMA_CACHE_DIR` (default `~/.claude/state/ollama-cache/`;
+env override for XDG) and are pruned beyond `CACHE_MAX_ENTRIES` (env
+`OLLAMA_CACHE_MAX_ENTRIES`). Embed timeout: `OLLAMA_EMBED_TIMEOUT`.
 Embeddings are NOT cached (callers need fresh vectors).

@@ -55,12 +55,21 @@ def is_alive(base_url: str = DEFAULT_URL, timeout: float = 2.0) -> bool:
 
 def _normalize_base_url(base_url: str) -> str:
     """Accept either a base URL (``http://host:11434``) or a legacy full endpoint
-    URL (``.../api/generate``, ``.../api/chat``, ``.../api/embeddings``) and
+    URL (``.../api/generate``, ``.../api/chat``, ``.../api/embeddings``,
+    ``.../api/embed``, ``.../api/tags``, ``.../api/ps``, ``.../api/show``) and
     return the base. Lets old callers that pass a full URL keep working after
     the consolidation of the four inline clients.
     """
     url = base_url.rstrip("/")
-    for suffix in ("/api/generate", "/api/chat", "/api/embeddings"):
+    for suffix in (
+        "/api/generate",
+        "/api/chat",
+        "/api/embeddings",
+        "/api/embed",
+        "/api/tags",
+        "/api/ps",
+        "/api/show",
+    ):
         if url.endswith(suffix):
             url = url[: -len(suffix)]
             break
@@ -95,7 +104,7 @@ def _post(path: str, payload: dict, base_url: str, timeout: float) -> dict:
     Raises:
         OllamaRequestError: daemon reachable but the request failed on every
             attempt (HTTP 4xx/5xx or timeout) — model-specific, try next.
-        OllamaUnavailable: daemon reachable / network down — abort the chain.
+        OllamaUnavailable: daemon unreachable / network down — abort the chain.
     """
     with serialize_lock():
         return _post_with_retry(path, payload, base_url, timeout)
@@ -160,4 +169,36 @@ def _post_once(path: str, payload: dict, base_url: str, timeout: float) -> dict:
         raise OllamaRequestError(408, f"timeout: {exc}") from exc
     except (urllib.error.URLError, OSError) as exc:
         # Daemon unreachable / network down → no point trying more models.
+        raise OllamaUnavailable(str(exc)) from exc
+
+
+def _get(path: str, base_url: str, timeout: float) -> dict:
+    """GET JSON from an Ollama endpoint; return parsed JSON.
+
+    Used by read-only ops (``/api/tags`` model listing). No transient retry —
+    these are interactive diagnostics, not hook-critical calls.
+
+    Raises:
+        OllamaRequestError: daemon reachable but the request failed (HTTP 4xx/5xx
+            or timeout).
+        OllamaUnavailable: daemon unreachable / network down.
+    """
+    url = f"{_normalize_base_url(base_url)}{path}"
+    req = urllib.request.Request(url, method="GET")
+    try:
+        # nosemgrep: dynamic-urllib-use-detected
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw_body = resp.read()
+        try:
+            parsed = json.loads(raw_body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise OllamaRequestError(502, f"invalid JSON response: {raw_body[:200]!r}") from exc
+        if not isinstance(parsed, dict):
+            raise OllamaRequestError(502, f"unexpected JSON response: {raw_body[:200]!r}")
+        return parsed
+    except urllib.error.HTTPError as exc:
+        raise OllamaRequestError(exc.code, "") from exc
+    except TimeoutError as exc:
+        raise OllamaRequestError(408, f"timeout: {exc}") from exc
+    except (urllib.error.URLError, OSError) as exc:
         raise OllamaUnavailable(str(exc)) from exc

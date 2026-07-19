@@ -35,6 +35,11 @@ def test_normalize_embeddings_suffix():
     assert _normalize_base_url("http://h:11434/api/embeddings") == "http://h:11434"
 
 
+def test_normalize_other_endpoint_suffixes():
+    for suffix in ("/api/embed", "/api/tags", "/api/ps", "/api/show"):
+        assert _normalize_base_url(f"http://h:11434{suffix}") == "http://h:11434"
+
+
 def test_normalize_rejects_non_http_scheme():
     with pytest.raises(ValueError):
         _normalize_base_url("file:///tmp/ollama")

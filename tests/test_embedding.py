@@ -67,6 +67,7 @@ def test_embed_request_error_long_text_retries(fake_urlopen):
 
     # Mock _post inside embedding module to control responses
     import ollama_client.embedding as emb_mod
+
     with pytest.MonkeyPatch().context() as mp:
         mp.setattr(emb_mod, "_post", fake_post)
         long_text = "a" * 600
@@ -98,6 +99,7 @@ def test_embed_none_response_long_text_retries(fake_urlopen):
         return {"embedding": [0.7, 0.7]}
 
     import ollama_client.embedding as emb_mod
+
     with pytest.MonkeyPatch().context() as mp:
         mp.setattr(emb_mod, "_post", fake_post)
         long_text = "b" * 600

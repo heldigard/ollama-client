@@ -14,10 +14,12 @@ from ._config import (
     DEFAULT_EMBED_MODEL,
     DEFAULT_GEN_MODEL,
     DEFAULT_PDF_OCR_MODEL,
+    DEFAULT_TIMEOUT,
     DEFAULT_URL,
+    EMBED_TIMEOUT,
     PDF_OCR_PROMPT,
 )
-from ._transport import OllamaUnavailable, is_alive
+from ._transport import OllamaUnavailable, _get, is_alive
 from ._version import __version__
 from .chat import chat
 from .embedding import embed
@@ -31,10 +33,15 @@ def _cli(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="command", required=True)
     alive = sub.add_parser("is-alive", help="Exit 0 if Ollama daemon answers")
     alive.add_argument("--base-url", default=DEFAULT_URL)
+    m = sub.add_parser("models", help="List installed models (/api/tags)")
+    m.add_argument("--base-url", default=DEFAULT_URL)
+    m.add_argument("--json", action="store_true", help="Print the raw models array as JSON")
     g = sub.add_parser("generate", help="One-shot completion")
     g.add_argument("--prompt", required=True)
     g.add_argument("--model", default=DEFAULT_GEN_MODEL)
     g.add_argument("--temperature", type=float, default=0.2)
+    g.add_argument("--num-ctx", type=int, default=None, help="Context window override")
+    g.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
     g.add_argument("--no-cache", action="store_true")
     g.add_argument("--base-url", default=DEFAULT_URL)
     c = sub.add_parser("chat", help="Chat completion (system/user roles)")
@@ -43,6 +50,9 @@ def _cli(argv: list[str] | None = None) -> int:
     c.add_argument("--model", default=DEFAULT_GEN_MODEL)
     c.add_argument("--temperature", type=float, default=0.2)
     c.add_argument("--num-predict", type=int, default=None)
+    c.add_argument("--num-ctx", type=int, default=None, help="Context window override")
+    c.add_argument("--think", action="store_true", help="Enable the model's thinking mode")
+    c.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
     c.add_argument("--no-cache", action="store_true")
     c.add_argument("--base-url", default=DEFAULT_URL)
     o = sub.add_parser("ocr-image", help="OCR one rendered page/image")
@@ -53,11 +63,28 @@ def _cli(argv: list[str] | None = None) -> int:
     e = sub.add_parser("embed", help="Embedding vector for one text")
     e.add_argument("--text", required=True)
     e.add_argument("--model", default=DEFAULT_EMBED_MODEL)
+    e.add_argument("--timeout", type=float, default=EMBED_TIMEOUT)
     e.add_argument("--base-url", default=DEFAULT_URL)
     args = ap.parse_args(argv)
 
     if args.command == "is-alive":
         return 0 if is_alive(base_url=getattr(args, "base_url", DEFAULT_URL)) else 1
+
+    if args.command == "models":
+        try:
+            data = _get("/api/tags", args.base_url, timeout=5.0)
+        except OllamaUnavailable as exc:
+            print(f"ollama unavailable: {exc}", file=sys.stderr)
+            return 2
+        models = data.get("models") or []
+        if args.json:
+            print(json.dumps(models))
+            return 0
+        for entry in models:
+            name = entry.get("name", "?")
+            size_gb = entry.get("size", 0) / 1e9
+            print(f"{name}\t{size_gb:.1f} GB")
+        return 0
 
     if args.command == "generate":
         try:
@@ -65,8 +92,10 @@ def _cli(argv: list[str] | None = None) -> int:
                 args.prompt,
                 model=args.model,
                 temperature=args.temperature,
+                timeout=args.timeout,
                 base_url=args.base_url,
                 cache=not args.no_cache,
+                num_ctx=args.num_ctx,
             )
         except OllamaUnavailable as exc:
             print(f"ollama unavailable: {exc}", file=sys.stderr)
@@ -86,8 +115,11 @@ def _cli(argv: list[str] | None = None) -> int:
                 model=args.model,
                 temperature=args.temperature,
                 num_predict=args.num_predict,
+                think=args.think,
+                timeout=args.timeout,
                 base_url=args.base_url,
                 cache=not args.no_cache,
+                num_ctx=args.num_ctx,
             )
         except OllamaUnavailable as exc:
             print(f"ollama unavailable: {exc}", file=sys.stderr)
@@ -97,7 +129,7 @@ def _cli(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "embed":
-        vec = embed(args.text, model=args.model, base_url=args.base_url)
+        vec = embed(args.text, model=args.model, timeout=args.timeout, base_url=args.base_url)
         if vec is None:
             print("ollama unavailable or empty embedding", file=sys.stderr)
             return 2

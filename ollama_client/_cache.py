@@ -116,6 +116,26 @@ def _write_cache_text(path: Path, text: str) -> None:
                 pass
 
 
+# Precompiled at import time: _strip_think_tags runs on every generate/chat/ocr
+# response (hot path for the codeq/smart-trim hooks), and re.compile per call is
+# pure overhead. Ordered to mirror the original inline substitutions.
+_RE_TAG_BLOCKS = [
+    re.compile(r"<think\b[^>]*>.*?(</think\s*>|$)", re.S | re.I),
+    re.compile(r"<reasoning\b[^>]*>.*?(</reasoning\s*>|$)", re.S | re.I),
+    re.compile(r"<reflection\b[^>]*>.*?(</reflection\s*>|$)", re.S | re.I),
+    re.compile(r"^.*?</(?:think|reasoning|reflection)\s*>", re.S | re.I),
+]
+_RE_OUTPUT_BLOCK = re.compile(r"<output\b[^>]*>(.*?)</output\s*>", re.S | re.I)
+_RE_PIPE_THINK = re.compile(r"<\|think\|>.*?<\|/think\|>", re.S | re.I)
+_RE_CHANNEL_MIXED = re.compile(r"<\|channel>.*?<channel\|>", re.S | re.I)
+_RE_CHANNEL_PIPED = re.compile(r"<\|channel\|>.*?(<\|channel\|>|$)", re.S | re.I)
+_RE_VISIBLE_THINKING = re.compile(
+    r"^\s*(thinking process|let me think)[: ].*?(final answer|answer|output)\s*:\s*",
+    re.S | re.I,
+)
+_RE_PARAGRAPH_SPLIT = re.compile(r"\n\s*\n")
+
+
 def _strip_think_tags(text: str) -> str:
     """Remove inline reasoning blocks some models emit in ``content`` even with
     ``think=False`` (Qwen-family ``<think>...</think>``, ``<reasoning>...</reasoning>``,
@@ -128,29 +148,23 @@ def _strip_think_tags(text: str) -> str:
     """
     if not text:
         return ""
-    text = re.sub(r"<think\b[^>]*>.*?(</think\s*>|$)", "", text, flags=re.S | re.I)
-    text = re.sub(r"<reasoning\b[^>]*>.*?(</reasoning\s*>|$)", "", text, flags=re.S | re.I)
-    text = re.sub(r"<reflection\b[^>]*>.*?(</reflection\s*>|$)", "", text, flags=re.S | re.I)
-    text = re.sub(r"^.*?</(?:think|reasoning|reflection)\s*>", "", text, flags=re.S | re.I)
-    text = re.sub(r"<output\b[^>]*>(.*?)</output\s*>", r"\1", text, flags=re.S | re.I)
-    text = re.sub(r"<\|think\|>.*?<\|/think\|>", "", text, flags=re.S | re.I)
+    for pattern in _RE_TAG_BLOCKS:
+        text = pattern.sub("", text)
+    text = _RE_OUTPUT_BLOCK.sub(r"\1", text)
+    text = _RE_PIPE_THINK.sub("", text)
     # Gemma-4 abliterated/uncensored variants leak a thinking channel even with
     # think=False: ``<|channel>thought\n<channel|>real answer``. Strip the whole
     # channel block (opening <|channel> through closing <channel|>) so only the
     # real answer remains. Conservative: requires BOTH delimiters.
-    text = re.sub(r"<\|channel>.*?<channel\|>", "", text, flags=re.S | re.I)
-    text = re.sub(r"<\|channel\|>.*?(<\|channel\|>|$)", "", text, flags=re.S | re.I)
-    visible = re.search(
-        r"^\s*(thinking process|let me think)[: ].*?(final answer|answer|output)\s*:\s*",
-        text,
-        flags=re.S | re.I,
-    )
+    text = _RE_CHANNEL_MIXED.sub("", text)
+    text = _RE_CHANNEL_PIPED.sub("", text)
+    visible = _RE_VISIBLE_THINKING.search(text)
     if visible:
         text = text[visible.end() :]
     else:
         low = text.lstrip().lower()
         if low.startswith(("thinking process:", "let me think:")):
-            parts = re.split(r"\n\s*\n", text.strip(), maxsplit=1)
+            parts = _RE_PARAGRAPH_SPLIT.split(text.strip(), maxsplit=1)
             text = parts[1] if len(parts) == 2 else ""
     return text.strip()
 

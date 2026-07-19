@@ -57,3 +57,5 @@ pythonpath = ["."]
 [tool.pyright]
 include = ["ollama_client", "tests"]
 pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"

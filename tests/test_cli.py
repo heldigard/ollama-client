@@ -34,6 +34,43 @@ def test_cli_is_alive_base_url(monkeypatch):
     assert captured["base_url"] == "http://custom:11434"
 
 
+# --- models ---
+
+
+def test_cli_models_table(monkeypatch, capsys):
+    def fake_get(path: str, base_url: str, timeout: float) -> dict:
+        assert path == "/api/tags"
+        return {
+            "models": [
+                {"name": "gemma4:latest", "size": 3_400_000_000},
+                {"name": "embeddinggemma", "size": 620_000_000},
+            ]
+        }
+
+    monkeypatch.setattr(cli_mod, "_get", fake_get)
+    rc = cli_mod._cli(["models"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "gemma4:latest" in out and "3.4 GB" in out
+    assert "embeddinggemma" in out and "0.6 GB" in out
+
+
+def test_cli_models_json(monkeypatch, capsys):
+    payload = {"models": [{"name": "m1", "size": 1}]}
+    monkeypatch.setattr(cli_mod, "_get", lambda *a, **_kw: payload)
+    rc = cli_mod._cli(["models", "--json"])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out) == payload["models"]
+
+
+def test_cli_models_unavailable_exit_2(monkeypatch):
+    def boom(*a, **_kw):
+        raise o.OllamaUnavailable("down")
+
+    monkeypatch.setattr(cli_mod, "_get", boom)
+    assert cli_mod._cli(["models"]) == 2
+
+
 # --- generate ---
 
 
@@ -70,6 +107,33 @@ def test_cli_generate_no_cache_flag(monkeypatch):
     monkeypatch.setattr(cli_mod, "generate", fake)
     cli_mod._cli(["generate", "--prompt", "hi", "--no-cache"])
     assert captured["cache"] is False
+
+
+def test_cli_generate_num_ctx_and_timeout(monkeypatch):
+    captured: dict = {}
+
+    def fake(prompt: str, **kw: object) -> str:
+        captured.update(kw)
+        return "ok"
+
+    monkeypatch.setattr(cli_mod, "generate", fake)
+    cli_mod._cli(["generate", "--prompt", "hi", "--num-ctx", "32768", "--timeout", "30"])
+    assert captured["num_ctx"] == 32768
+    assert captured["timeout"] == 30.0
+
+
+def test_cli_chat_think_num_ctx_timeout(monkeypatch):
+    captured: dict = {}
+
+    def fake(messages: list, **kw: object) -> str:
+        captured.update(kw)
+        return "ok"
+
+    monkeypatch.setattr(cli_mod, "chat", fake)
+    cli_mod._cli(["chat", "--prompt", "hi", "--think", "--num-ctx", "16384", "--timeout", "45"])
+    assert captured["think"] is True
+    assert captured["num_ctx"] == 16384
+    assert captured["timeout"] == 45.0
 
 
 # --- embed ---

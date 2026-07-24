@@ -53,7 +53,7 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I"]
+select = ["E", "F", "W", "I", "UP", "B"]
 
 # __init__.py re-exports internals (_post, _cache_key, ...) for mock-patching
 # parity with the prior flat module — they are intentionally "unused" locally.

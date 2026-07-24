@@ -15,32 +15,24 @@ import pytest
 
 @pytest.fixture
 def isolated_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Redirect ``OLLAMA_CACHE_DIR`` to a temp dir in every module that imported
-    it at load time (``_config``, ``_cache``, ``generation``, ``chat``).
+    """Redirect ``OLLAMA_CACHE_DIR`` to a temp dir in the modules that read it.
 
-    Each ``from ._config import OLLAMA_CACHE_DIR`` binds a *static* reference, so
-    patching only ``_config.OLLAMA_CACHE_DIR`` is not enough — the consumers keep
-    their original copy. Patching all four keeps cache tests hermetic.
+    All cache I/O (key path, replay, write, prune) now lives in ``_cache`` and
+    reads ``_cache.OLLAMA_CACHE_DIR`` — a *static* copy bound at import from
+    ``_config`` — so patching ``_cache`` is what makes tests hermetic. ``_config``
+    is patched too for belt-and-suspenders. ``generation``/``chat`` no longer
+    reference the cache root directly (they call ``_cache_replay``/``_cache_store``),
+    so they are not patched.
     """
     cache_dir = tmp_path / "ollama-cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    # ``chat``/``generation`` COLLIDE with same-named functions re-exported in
-    # __init__ (``from .chat import chat``). Both ``from ollama_client import
-    # chat`` AND ``import ollama_client.chat as x`` resolve the FUNCTION, not the
-    # module, because __init__ rebound the package attribute. importlib always
-    # returns the real submodule object from sys.modules. _cache/_config don't
-    # collide, but we use importlib uniformly for clarity.
     import importlib
 
     cache_mod = importlib.import_module("ollama_client._cache")
     config_mod = importlib.import_module("ollama_client._config")
-    chat_mod = importlib.import_module("ollama_client.chat")
-    gen_mod = importlib.import_module("ollama_client.generation")
 
     monkeypatch.setattr(config_mod, "OLLAMA_CACHE_DIR", cache_dir)
     monkeypatch.setattr(cache_mod, "OLLAMA_CACHE_DIR", cache_dir)
-    monkeypatch.setattr(gen_mod, "OLLAMA_CACHE_DIR", cache_dir)
-    monkeypatch.setattr(chat_mod, "OLLAMA_CACHE_DIR", cache_dir)
     return cache_dir
 
 

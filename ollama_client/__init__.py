@@ -34,6 +34,8 @@ from ._cache import (
     _cache_key,
     _cache_key_chat,
     _cache_path,
+    _cache_replay,
+    _cache_store,
     _prune_cache,
     _strip_think_tags,
 )
@@ -71,7 +73,7 @@ from .chat import chat, chat_fallback
 
 # --- CLI ---
 from .cli import _cli, main
-from .embedding import _embed_once, embed
+from .embedding import _embed_once, _retry_halved, embed
 from .generation import generate, generate_fallback
 from .models import list_models, list_running
 from .vision import ocr_image

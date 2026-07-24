@@ -224,11 +224,11 @@ def test_chat_ignores_legacy_cache_key(isolated_cache, fake_urlopen):
 
 
 def _set_cache_root(monkeypatch, cache_root):
+    # Cache I/O lives in _cache (reads _cache.OLLAMA_CACHE_DIR); _config patched
+    # for belt-and-suspenders. generation/chat no longer reference the cache root.
     for module_name in (
         "ollama_client._cache",
         "ollama_client._config",
-        "ollama_client.chat",
-        "ollama_client.generation",
     ):
         monkeypatch.setattr(importlib.import_module(module_name), "OLLAMA_CACHE_DIR", cache_root)
 
@@ -271,6 +271,73 @@ def test_cache_false_does_not_create_cache_root(tmp_path, monkeypatch, fake_urlo
         "chatted"
     )
     assert not cache_root.exists()
+
+
+# --- _cache_replay / _cache_store (shared generate/chat cache policy) ---
+
+
+def test_cache_replay_not_cacheable_returns_none_pair(tmp_path, monkeypatch):
+    """Disabled caching -> (None, None) and no cache root created."""
+    from ollama_client._cache import _cache_replay
+
+    cache_root = tmp_path / "should-not-exist"
+    monkeypatch.setattr(
+        importlib.import_module("ollama_client._cache"), "OLLAMA_CACHE_DIR", cache_root
+    )
+    assert _cache_replay(False, "k") == (None, None)
+    assert not cache_root.exists()
+
+
+def test_cache_replay_miss_returns_path_no_hit(isolated_cache):
+    from ollama_client._cache import _cache_path, _cache_replay
+
+    path, hit = _cache_replay(True, "abc")
+    assert hit is None
+    assert path == _cache_path("abc")
+
+
+def test_cache_replay_hit_returns_stored_text(isolated_cache):
+    from ollama_client._cache import _cache_path, _cache_replay
+
+    _cache_path("abc").write_text("stored", encoding="utf-8")
+    path, hit = _cache_replay(True, "abc")
+    assert hit == "stored"
+    assert path == _cache_path("abc")
+
+
+def test_cache_replay_drops_empty_entry(isolated_cache):
+    """A truncated (empty) entry is unlinked and falls through (no hit)."""
+    from ollama_client._cache import _cache_path, _cache_replay
+
+    entry = _cache_path("abc")
+    entry.write_text("", encoding="utf-8")
+    path, hit = _cache_replay(True, "abc")
+    assert hit is None
+    assert path == entry
+    assert not entry.exists()
+
+
+def test_cache_replay_root_failure_fails_open(tmp_path, monkeypatch):
+    from ollama_client._cache import _cache_replay
+
+    cache_root = tmp_path / "cache-root"
+    cache_root.write_text("not a directory", encoding="utf-8")
+    monkeypatch.setattr(
+        importlib.import_module("ollama_client._cache"), "OLLAMA_CACHE_DIR", cache_root
+    )
+    assert _cache_replay(True, "k") == (None, None)
+
+
+def test_cache_store_writes_and_noop_on_empty(isolated_cache):
+    from ollama_client._cache import _cache_path, _cache_store
+
+    _cache_store(_cache_path("abc"), "value")
+    assert _cache_path("abc").read_text(encoding="utf-8") == "value"
+
+    # Empty text / no path -> no-op, nothing written.
+    _cache_store(_cache_path("empty"), None)
+    _cache_store(None, "value")
+    assert not _cache_path("empty").exists()
 
 
 def test_prune_cache_sweeps_stale_tmp_files(isolated_cache):

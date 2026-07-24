@@ -116,6 +116,59 @@ def _write_cache_text(path: Path, text: str) -> None:
                 pass
 
 
+def _cache_replay(cacheable: bool, key: str) -> tuple[Path | None, str | None]:
+    """Resolve a cacheable call's entry and return a replay hit.
+
+    Returns ``(cached_path, hit)``:
+
+    - ``hit`` is the stored text when a healthy entry exists — the caller returns
+      it and skips the network round-trip.
+    - ``cached_path`` is the entry path the caller writes to after a live call,
+      or ``None`` when caching is disabled or the cache root cannot be created
+      (fail-open: the live call still runs).
+
+    A corrupt (unreadable) or empty (truncated write) entry is dropped so it can
+    never short-circuit the live call forever. Centralized here so ``generate``
+    and ``chat`` share one replay/write policy instead of two drifting copies.
+    """
+    if not cacheable:
+        return None, None
+    path = _cache_path(key)
+    try:
+        OLLAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return None, None
+    if path.exists():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            text = ""  # corrupt entry; fall through to live call
+        if text:
+            return path, text
+        # An empty entry (truncated write) would short-circuit the live call
+        # forever — drop it and regenerate.
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return path, None
+
+
+def _cache_store(cached_path: Path | None, text: str | None) -> None:
+    """Persist a live result to its cache entry and prune (fail-open).
+
+    No-op when caching was disabled/unavailable (``cached_path is None``) or the
+    model returned nothing. I/O errors never propagate — a cache write failure
+    must not fail the caller's request.
+    """
+    if text and cached_path is not None:
+        try:
+            _write_cache_text(cached_path, text)
+            _prune_cache()
+        except OSError:
+            pass
+
+
 # Precompiled at import time: _strip_think_tags runs on every generate/chat/ocr
 # response (hot path for the codeq/smart-trim hooks), and re.compile per call is
 # pure overhead. Ordered to mirror the original inline substitutions.

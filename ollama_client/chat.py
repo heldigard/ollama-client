@@ -5,15 +5,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from ._cache import _cache_key_chat, _cache_path, _prune_cache, _strip_think_tags, _write_cache_text
+from ._cache import _cache_key_chat, _cache_replay, _cache_store, _strip_think_tags
 from ._config import (
     CACHE_MAX_TEMP,
     DEFAULT_GEN_MODEL,
     DEFAULT_TIMEOUT,
     DEFAULT_URL,
-    OLLAMA_CACHE_DIR,
 )
 from ._transport import OllamaRequestError, OllamaUnavailable, _post
 
@@ -79,40 +76,19 @@ def chat(
     separation. Pass ``num_ctx`` to extend the context window for large message
     bodies (e.g. session compaction).
     """
-    cacheable = cache and temperature <= CACHE_MAX_TEMP
-    cached_path: Path | None = (
-        _cache_path(
-            _cache_key_chat(
-                model,
-                messages,
-                temperature,
-                num_predict,
-                num_ctx,
-                think=think,
-            )
-        )
-        if cacheable
-        else None
+    cached_path, hit = _cache_replay(
+        cache and temperature <= CACHE_MAX_TEMP,
+        _cache_key_chat(
+            model,
+            messages,
+            temperature,
+            num_predict,
+            num_ctx,
+            think=think,
+        ),
     )
-    if cached_path is not None:
-        try:
-            OLLAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            cached_path = None
-    if cached_path is not None:
-        if cached_path.exists():
-            try:
-                cached_text = cached_path.read_text(encoding="utf-8")
-            except OSError:
-                cached_text = ""  # corrupt entry; fall through to live call
-            if cached_text:
-                return cached_text
-            # An empty entry (truncated write) would short-circuit the live
-            # call forever — drop it and regenerate.
-            try:
-                cached_path.unlink(missing_ok=True)
-            except OSError:
-                pass
+    if hit:
+        return hit
 
     options: dict = {"temperature": temperature}
     if num_predict is not None:
@@ -145,13 +121,7 @@ def chat(
         )
         content = data.get("response", "")
     content = _strip_think_tags(str(content).strip()) or None
-
-    if content and cached_path is not None:
-        try:
-            _write_cache_text(cached_path, content)
-            _prune_cache()
-        except OSError:
-            pass
+    _cache_store(cached_path, content)
     return content
 
 

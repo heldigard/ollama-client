@@ -63,6 +63,29 @@ def _embed_once(
     return _vector_from_response(data)
 
 
+def _retry_halved(
+    text: str,
+    model: str,
+    timeout: float,
+    base_url: str,
+) -> list[float] | None:
+    """Retry a failed embed once with the text halved (long inputs only).
+
+    A long token-dense chunk (commit hashes, dotted version strings like
+    ``v1.5.21.18.19.54``) can exceed the embed model's token context even under a
+    char budget; a half-content vector still serves recall better than none.
+    Returns ``None`` for short inputs or when the retry cannot help — the daemon
+    is down or the halved request also fails — so :func:`embed` stays total
+    (never raises) and never re-halves twice.
+    """
+    if len(text) <= 512:
+        return None
+    try:
+        return _embed_once(text[: len(text) // 2], model, timeout, base_url)
+    except (OllamaRequestError, OllamaUnavailable):
+        return None
+
+
 def embed(
     text: str,
     *,
@@ -72,34 +95,24 @@ def embed(
 ) -> list[float] | None:
     """Embedding vector for a single text via ``/api/embeddings``.
 
-    Returns ``None`` if the daemon is down or returned nothing.
+    Returns ``None`` if the daemon is down or returned nothing — this function is
+    total and never raises.
 
-    Resilience: a long token-dense chunk (commit hashes, dotted version strings
-    like ``v1.5.21.18.19.54``) can exceed the embed model's token context even
-    under a char budget — Ollama then answers HTTP 500 and the chunk would be
-    skipped. Rather than drop it, retry once with the text halved: a
-    half-content embedding still serves recall better than none.
-
-    On HTTP 404 from ``/api/embeddings``, :func:`_embed_once` retries once with
-    the newer ``/api/embed`` endpoint (``input`` field).
+    Resilience: a long token-dense chunk can exceed the embed model's token
+    context even under a char budget — Ollama then answers HTTP 500 (or returns
+    no embedding field). Rather than drop it, retry once with the text halved via
+    :func:`_retry_halved`. On HTTP 404 from ``/api/embeddings``,
+    :func:`_embed_once` retries once with the newer ``/api/embed`` endpoint
+    (``input`` field).
     """
     try:
         vec = _embed_once(text, model, timeout, base_url)
-        if vec is not None:
-            return vec
-        if len(text) > 512:
-            try:
-                return _embed_once(text[: len(text) // 2], model, timeout, base_url)
-            except OllamaUnavailable:
-                pass
     except OllamaRequestError:
-        # Request failed (e.g. context limit HTTP 500) -> try once with halved text.
-        if len(text) > 512:
-            try:
-                return _embed_once(text[: len(text) // 2], model, timeout, base_url)
-            except OllamaUnavailable:
-                pass
+        # Request failed (e.g. context-limit HTTP 500) -> try once with halved text.
+        return _retry_halved(text, model, timeout, base_url)
     except OllamaUnavailable:
-        # Daemon is unreachable -> abort immediately, do not make a redundant call.
-        pass
-    return None
+        # Daemon unreachable -> abort immediately, no redundant call.
+        return None
+    if vec is not None:
+        return vec
+    return _retry_halved(text, model, timeout, base_url)

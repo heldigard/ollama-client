@@ -146,3 +146,24 @@ def test_embed_none_response_long_text_retries(fake_urlopen):
         assert len(calls) == 2
         assert calls[0]["prompt"] == long_text
         assert calls[1]["prompt"] == "b" * 300
+
+
+def test_embed_halved_retry_failure_is_total():
+    """embed is total: when BOTH the full and the halved request fail, it returns
+    None (never raises, never re-halves twice)."""
+    calls = []
+
+    def fake_post(path, payload, base_url, timeout):
+        calls.append(payload)
+        raise o.OllamaRequestError(500, "context length exceeded")
+
+    import ollama_client.embedding as emb_mod
+
+    with pytest.MonkeyPatch().context() as mp:
+        mp.setattr(emb_mod, "_post", fake_post)
+        long_text = "c" * 600
+        assert embed(long_text, model="m", timeout=10, base_url="http://h:11434") is None
+        # Exactly two attempts: full text, then one halved retry — no more.
+        assert len(calls) == 2
+        assert calls[0]["prompt"] == long_text
+        assert calls[1]["prompt"] == "c" * 300

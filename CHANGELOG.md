@@ -7,6 +7,18 @@ function signatures that the harness consumers depend on.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Internal: collapsed the duplicated generate/chat cache replay+write block into
+  shared `_cache_replay` / `_cache_store` helpers (one fail-open + empty-entry-drop
+  policy instead of two drifting copies). Public signatures unchanged.
+- Internal: `embed` retry-once-with-halved-text logic consolidated into
+  `_retry_halved`; `embed` is now total (never raises) and no longer re-halves
+  twice on a repeated failure.
+- CI: run the quality gate (pytest / ruff / pyright) across Python 3.11-3.14 to
+  match the declared classifiers; wheel build + smoke stay on 3.11.
+
 ## [1.2.1] — 2026-07-19
 
 ### Added
